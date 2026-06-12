@@ -1,0 +1,5 @@
+node_modules/
+bin/
+folders.json
+.system_generated/
+*.log
