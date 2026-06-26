@@ -1,0 +1,25 @@
+{
+  "folders": [
+    {
+      "id": "research",
+      "name": "Research",
+      "children": [
+        { "id": "research-papers", "name": "Papers", "notebooks": [] },
+        { "id": "research-ideas", "name": "Ideas", "notebooks": [] }
+      ],
+      "notebooks": []
+    },
+    {
+      "id": "work",
+      "name": "Work",
+      "children": [],
+      "notebooks": []
+    },
+    {
+      "id": "personal",
+      "name": "Personal",
+      "children": [],
+      "notebooks": []
+    }
+  ]
+}
