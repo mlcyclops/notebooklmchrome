@@ -7,9 +7,9 @@
 - ✅ Context-management system established (CLAUDE.md, PROGRESS.md, ADR system) — this change.
 - ✅ Folder colors & icons: optional `color`/`icon` fields per folder, curated allow-listed palette + emoji set, inline customize popover, injection-safe rendering, backward-compatible normalization (ADR-0003).
 - ✅ Import / export folder structures (JSON): Export downloads a versioned `{version, exportedAt, data}` envelope; Import reads a file, validates/normalizes through `normalizeFolderData` + the color/icon sanitize allow-lists, and REPLACES the current folders after a `confirm()`. Offline-first, dependency-free (ADR-0004).
+- ✅ Search and filter within folders: debounced `<input type="search">` in the sidebar header filters the folder tree + unorganized list client-side, in memory, via a pure recursive `nodeMatchesQuery` predicate (folder name OR assigned notebook title OR descendant match; case-insensitive substring). Ancestors of a match stay visible/expanded; non-matching branches hide. Clear "×" button resets; empty query = full render; "No matches" empty state. Injection-safe escape-then-wrap highlighting. No data mutation/persistence (ADR-0005).
 
 ## Next Up
-- [ ] Search and filter within folders
 - [ ] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
@@ -20,6 +20,15 @@
 ---
 
 ## Session Log (append-only, newest first)
+
+### 2026-06-26 — Search and filter within folders (ADR-0005)
+- Added a debounced (~180ms) `<input type="search">` with a clear ("×") button to the sidebar header, styled to the dark violet theme in `content.css`.
+- Introduced transient module state `searchQuery` (lowercased, never persisted). `renderSidebar()` / `renderFolderNode()` consult it and the unorganized list filters by title; an empty/cleared query restores the full tree.
+- Implemented pure helpers: `nodeMatchesQuery(node, q, allFolders, notebooks)` (folder name OR an assigned notebook title OR any descendant folder matches — reuses the same `parentId` / `notebookIds` assignment the normal render uses), `notebookMatchesQuery`, and an injection-safe `highlightMatch` (escape FIRST via `escapeHtml`, then wrap matches in `<mark class="nlm-search-hl">` on the already escaped string). No raw user text reaches innerHTML.
+- Ancestor preservation falls out of the predicate: a folder renders whenever a descendant matches, so ancestors of a match stay visible; non-matching siblings hide. A folder whose own name matches shows all its children. Filtering is purely visual — it never mutates or re-persists `folderData`; drag-and-drop still operates on the real data.
+- Added a gentle "No matches" state when an active query matches nothing.
+- Tested: `node --check` on all JS + manifest JSON parse (pass); headless Chromium load via Playwright (service worker registers, no load errors); a Node unit harness replicating the pure predicate/highlight logic — 16/16 assertions pass (folder-name match, nested-notebook match keeps ancestors, non-matching branches hidden, empty query returns all, case-insensitive substring, and highlight escapes a `<script>`-style name with no raw HTML).
+- Next: Sync folders across devices.
 
 ### 2026-06-26 — Import / export folder structures (ADR-0004)
 - Added **Export** and **Import** buttons to the sidebar header next to "New Root Folder".
