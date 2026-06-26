@@ -384,6 +384,76 @@
   color: var(--nlm-text-primary);
 }
 
+/* Customize popover: folder color + icon picker (ADR-0003) */
+.nlm-customize-popover {
+  min-width: 184px;
+  gap: 4px;
+}
+
+.nlm-customize-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nlm-text-secondary);
+  padding: 4px 4px 2px;
+}
+
+.nlm-color-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  padding: 2px 4px 6px;
+}
+
+.nlm-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.nlm-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.nlm-color-swatch.selected {
+  border-color: var(--nlm-text-primary);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.nlm-icon-choices {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+
+.nlm-icon-choice {
+  background: var(--nlm-folder-bg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 5px 0;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.nlm-icon-choice:hover {
+  background: var(--nlm-folder-hover);
+  transform: scale(1.08);
+}
+
+.nlm-icon-choice.selected {
+  border-color: var(--nlm-accent);
+  background: var(--nlm-notebook-hover);
+}
+
 /* The sidebar is a fixed overlay with a high z-index, so it floats above
    NotebookLM's own layout without reflowing it. No page-width adjustment is
    needed; the previously empty `body.nlm-sidebar-open` rule was removed. */
