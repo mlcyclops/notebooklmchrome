@@ -6,6 +6,39 @@ let isConnected = false;
 
 const STORAGE_KEY = 'nlm_folders';
 
+// Curated, dependency-free presets for folder customization (ADR-0003).
+// These are allow-lists: any color/icon placed into markup or an inline style
+// MUST be one of these values. Anything else falls back to the defaults below,
+// which closes the CSS/HTML injection vector by construction.
+const FOLDER_COLOR_PRESETS = [
+  '#a78bfa', // violet (default accent)
+  '#f87171', // red
+  '#fb923c', // orange
+  '#fbbf24', // amber
+  '#34d399', // green
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#f472b6'  // pink
+];
+const FOLDER_ICON_PRESETS = [
+  '📁', '📂', '⭐', '📌', '🔖', '💡',
+  '🚀', '📚', '🧠', '🎯', '🔬', '💼'
+];
+const DEFAULT_FOLDER_COLOR = FOLDER_COLOR_PRESETS[0];
+const DEFAULT_FOLDER_ICON = FOLDER_ICON_PRESETS[0];
+
+// Validate a stored/loaded color against the preset allow-list. Returns the
+// value only if it is an exact match; otherwise returns the safe default.
+function sanitizeFolderColor(color) {
+  return FOLDER_COLOR_PRESETS.includes(color) ? color : DEFAULT_FOLDER_COLOR;
+}
+
+// Validate a stored/loaded icon against the curated emoji set. Returns the
+// value only if it is an exact match; otherwise returns the safe default.
+function sanitizeFolderIcon(icon) {
+  return FOLDER_ICON_PRESETS.includes(icon) ? icon : DEFAULT_FOLDER_ICON;
+}
+
 // -------------------------------------------------------------
 // GENERIC HELPERS
 // -------------------------------------------------------------
@@ -176,7 +209,12 @@ function injectSidebar() {
 
   // Setup Global Document Clicks for Dropdowns
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.nlm-notebook-actions')) {
+    // Keep an open popover alive if the click lands on its trigger area
+    // (notebook move button, folder customize button) or inside the popover
+    // itself; otherwise dismiss any open dropdowns/popovers.
+    if (!e.target.closest('.nlm-notebook-actions') &&
+        !e.target.closest('.nlm-folder-actions') &&
+        !e.target.closest('.nlm-dropdown')) {
       document.querySelectorAll('.nlm-dropdown').forEach(d => d.classList.remove('show'));
     }
   });
@@ -207,8 +245,8 @@ async function checkServerStatus() {
 function defaultFolderData() {
   return {
     folders: [
-      { id: 'starter-research', name: 'Research', parentId: null, notebookIds: [] },
-      { id: 'starter-personal', name: 'Personal', parentId: null, notebookIds: [] }
+      { id: 'starter-research', name: 'Research', parentId: null, notebookIds: [], color: DEFAULT_FOLDER_COLOR, icon: '🔬' },
+      { id: 'starter-personal', name: 'Personal', parentId: null, notebookIds: [], color: '#34d399', icon: '⭐' }
     ]
   };
 }
@@ -218,7 +256,15 @@ function normalizeFolderData(data) {
   if (!data || !Array.isArray(data.folders)) {
     return defaultFolderData();
   }
-  return { folders: data.folders };
+  // Default-fill the optional color/icon fields (ADR-0003) so folders stored
+  // before this feature still render. Existing valid values are preserved;
+  // anything missing or out-of-allow-list falls back to a safe default.
+  const folders = data.folders.map((f) => ({
+    ...f,
+    color: sanitizeFolderColor(f.color),
+    icon: sanitizeFolderIcon(f.icon)
+  }));
+  return { folders };
 }
 
 // chrome.storage.local is the source of truth for folders. The companion
@@ -428,12 +474,17 @@ function renderFolderNode(parentId, depth) {
 
     const folderId = escapeHtml(node.id);
     const folderName = escapeHtml(node.name);
+    // Color/icon are validated against the preset allow-lists before being
+    // placed into markup or an inline style — never trust stored values raw.
+    const folderColor = sanitizeFolderColor(node.color);
+    const folderIcon = sanitizeFolderIcon(node.icon);
     html += `
       <div class="nlm-folder" data-folder-id="${folderId}">
-        <div class="nlm-folder-header" draggable="true" data-folder-id="${folderId}">
-          <span class="nlm-folder-icon">📁</span>
+        <div class="nlm-folder-header" draggable="true" data-folder-id="${folderId}" style="border-left: 3px solid ${folderColor};">
+          <span class="nlm-folder-icon" style="color: ${folderColor};">${folderIcon}</span>
           <span class="nlm-folder-title" title="${folderName}">${folderName}</span>
           <div class="nlm-folder-actions">
+            <button class="nlm-action-btn customize-folder-btn" data-folder-id="${folderId}" title="Customize">🎨</button>
             <button class="nlm-action-btn rename-folder-btn" data-folder-id="${folderId}" title="Rename">✏️</button>
             <button class="nlm-action-btn add-subfolder-btn" data-folder-id="${folderId}" title="Add Subfolder">➕</button>
             <button class="nlm-action-btn delete-folder-btn" data-folder-id="${folderId}" title="Delete">🗑️</button>
@@ -495,6 +546,15 @@ function attachUIEventListeners() {
     });
   });
 
+  // Customize folder color / icon
+  document.querySelectorAll('.customize-folder-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-folder-id');
+      showCustomizeDropdown(btn, id);
+    });
+  });
+
   // Notebook click to open (navigates on Google site)
   document.querySelectorAll('.nlm-notebook-link').forEach(link => {
     link.addEventListener('click', (e) => {
@@ -522,7 +582,9 @@ function addFolder(name, parentId) {
     id: Math.random().toString(36).substring(2, 9),
     name: name,
     parentId: parentId,
-    notebookIds: []
+    notebookIds: [],
+    color: DEFAULT_FOLDER_COLOR,
+    icon: DEFAULT_FOLDER_ICON
   };
   folderData.folders.push(newFolder);
   saveFolders();
@@ -587,6 +649,63 @@ function showMoveDropdown(anchorEl, notebookId) {
       }
 
       dropdown.remove();
+      saveFolders();
+    });
+  });
+}
+
+// Inline popover for picking a folder's color + icon (ADR-0003). Reuses the
+// dropdown styling/positioning and the global click-to-close handler. Every
+// value comes from the curated allow-lists, so nothing untrusted is rendered.
+function showCustomizeDropdown(anchorEl, folderId) {
+  // Clear any existing dropdown/popover.
+  document.querySelectorAll('.nlm-dropdown').forEach(d => d.remove());
+
+  const folder = folderData.folders.find(f => f.id === folderId);
+  if (!folder) return;
+
+  const currentColor = sanitizeFolderColor(folder.color);
+  const currentIcon = sanitizeFolderIcon(folder.icon);
+
+  const popover = document.createElement('div');
+  popover.className = 'nlm-dropdown nlm-customize-popover';
+
+  const swatchesHtml = FOLDER_COLOR_PRESETS.map(color => `
+    <button class="nlm-color-swatch${color === currentColor ? ' selected' : ''}"
+            data-color="${color}" title="${color}"
+            style="background: ${color};"></button>
+  `).join('');
+
+  const iconsHtml = FOLDER_ICON_PRESETS.map(icon => `
+    <button class="nlm-icon-choice${icon === currentIcon ? ' selected' : ''}"
+            data-icon="${icon}">${icon}</button>
+  `).join('');
+
+  popover.innerHTML = `
+    <div class="nlm-customize-label">Color</div>
+    <div class="nlm-color-swatches">${swatchesHtml}</div>
+    <div class="nlm-customize-label">Icon</div>
+    <div class="nlm-icon-choices">${iconsHtml}</div>
+  `;
+
+  anchorEl.parentNode.appendChild(popover);
+  setTimeout(() => popover.classList.add('show'), 10);
+
+  popover.querySelectorAll('.nlm-color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Re-validate against the allow-list before persisting.
+      folder.color = sanitizeFolderColor(swatch.getAttribute('data-color'));
+      popover.remove();
+      saveFolders();
+    });
+  });
+
+  popover.querySelectorAll('.nlm-icon-choice').forEach(choice => {
+    choice.addEventListener('click', (e) => {
+      e.stopPropagation();
+      folder.icon = sanitizeFolderIcon(choice.getAttribute('data-icon'));
+      popover.remove();
       saveFolders();
     });
   });
