@@ -163,6 +163,16 @@ function injectSidebar() {
       <button class="nlm-btn-add" id="nlm-btn-add-folder">
         <span>➕</span> New Root Folder
       </button>
+      <div class="nlm-header-actions">
+        <button class="nlm-btn-secondary" id="nlm-btn-export-folders" title="Download your folder structure as a JSON file">
+          <span>⬇️</span> Export
+        </button>
+        <button class="nlm-btn-secondary" id="nlm-btn-import-folders" title="Replace your folders from a JSON file">
+          <span>⬆️</span> Import
+        </button>
+      </div>
+      <input type="file" id="nlm-import-file-input" accept="application/json,.json" hidden />
+      <div class="nlm-import-status" id="nlm-import-status" hidden></div>
     </div>
     <div class="nlm-body" id="nlm-sidebar-body">
       <div class="nlm-section">
@@ -205,6 +215,23 @@ function injectSidebar() {
     if (name && name.trim()) {
       addFolder(name.trim(), null);
     }
+  });
+
+  // Export folders to a downloadable JSON file.
+  document.getElementById('nlm-btn-export-folders').addEventListener('click', () => {
+    exportFolders();
+  });
+
+  // Import folders: the visible button proxies a click to the hidden file input.
+  const importInput = document.getElementById('nlm-import-file-input');
+  document.getElementById('nlm-btn-import-folders').addEventListener('click', () => {
+    setImportStatus('', false);
+    importInput.value = ''; // allow re-importing the same filename
+    importInput.click();
+  });
+  importInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) importFolders(file);
   });
 
   // Setup Global Document Clicks for Dropdowns
@@ -336,6 +363,125 @@ async function saveFolders() {
       console.warn('NotebookLM Folderizer: optional server sync skipped:', e.message);
     }
   }
+}
+
+// -------------------------------------------------------------
+// IMPORT / EXPORT (ADR-0004)
+// -------------------------------------------------------------
+
+// Current schema version for the export envelope. Bump when the on-disk shape
+// changes so future importers can validate / migrate.
+const FOLDER_EXPORT_VERSION = 1;
+
+// Pure: turn the live folder structure into the versioned export envelope.
+function buildExportEnvelope(data) {
+  return {
+    version: FOLDER_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: data
+  };
+}
+
+// Pure validation/normalization for an imported, already-JSON-parsed payload.
+// Accepts either the enveloped form ({ version, data }) or a bare folder
+// structure ({ folders: [...] }). Returns { ok: true, data } with a fully
+// normalized + sanitized structure (color/icon forced onto the ADR-0003
+// allow-lists), or { ok: false, error } with a user-facing message. Never throws.
+function parseImportedFolders(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, error: 'File is not a valid folder export (expected a JSON object).' };
+  }
+
+  // Unwrap the envelope if present, otherwise treat the object as a bare structure.
+  let candidate;
+  if (Object.prototype.hasOwnProperty.call(parsed, 'data')) {
+    candidate = parsed.data;
+  } else {
+    candidate = parsed;
+  }
+
+  if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.folders)) {
+    return { ok: false, error: 'File does not contain a folder structure (missing "folders" array).' };
+  }
+
+  // normalizeFolderData coerces shape and runs every node's color/icon through
+  // the sanitize* allow-lists, so an import can never smuggle unsafe values.
+  const normalized = normalizeFolderData(candidate);
+  return { ok: true, data: normalized };
+}
+
+// Serialize the current folders to a downloadable JSON file.
+function exportFolders() {
+  try {
+    const envelope = buildExportEnvelope(folderData);
+    const json = JSON.stringify(envelope, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `notebooklm-folders-${stamp}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setImportStatus('Exported your folders to a JSON file.', false);
+  } catch (e) {
+    console.warn('NotebookLM Folderizer: export failed:', e.message);
+    setImportStatus('Could not export folders: ' + e.message, true);
+  }
+}
+
+// Read, validate, and (after confirmation) REPLACE the current folders with an
+// imported JSON file. Invalid files produce a clear, non-throwing message.
+function importFolders(file) {
+  const reader = new FileReader();
+  reader.onerror = () => {
+    setImportStatus('Could not read the selected file.', true);
+  };
+  reader.onload = () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(reader.result);
+    } catch (e) {
+      setImportStatus('That file is not valid JSON.', true);
+      return;
+    }
+
+    const result = parseImportedFolders(parsed);
+    if (!result.ok) {
+      setImportStatus(result.error, true);
+      return;
+    }
+
+    const count = result.data.folders.length;
+    if (!confirm('This will replace your current folders. Continue?')) {
+      setImportStatus('Import cancelled.', false);
+      return;
+    }
+
+    folderData = result.data;
+    saveFolders(); // persists to chrome.storage.local + re-renders + optional server sync
+    setImportStatus(`Imported ${count} folder${count === 1 ? '' : 's'}.`, false);
+  };
+  reader.readAsText(file);
+}
+
+// Small inline status line under the header buttons. `isError` tints it red.
+function setImportStatus(message, isError) {
+  const el = document.getElementById('nlm-import-status');
+  if (!el) return;
+  if (!message) {
+    el.textContent = '';
+    el.hidden = true;
+    el.classList.remove('error');
+    return;
+  }
+  el.textContent = message;
+  el.hidden = false;
+  el.classList.toggle('error', !!isError);
 }
 
 // -------------------------------------------------------------

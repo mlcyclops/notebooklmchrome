@@ -156,6 +156,56 @@
   transform: translateY(0);
 }
 
+/* Import / export buttons (ADR-0004) */
+.nlm-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.nlm-btn-secondary {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nlm-border);
+  color: var(--nlm-text-secondary);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nlm-btn-secondary:hover {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: var(--nlm-accent);
+  color: var(--nlm-accent);
+  transform: translateY(-1px);
+}
+
+.nlm-btn-secondary:active {
+  transform: translateY(0);
+}
+
+.nlm-import-status {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nlm-text-secondary);
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid var(--nlm-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.nlm-import-status.error {
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
 /* Sidebar Body / Content Area */
 .nlm-body {
   flex: 1;
