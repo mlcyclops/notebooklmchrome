@@ -384,9 +384,6 @@
   color: var(--nlm-text-primary);
 }
 
-/* Injected Page Width Adjustment on Open */
-body.nlm-sidebar-open {
-  /* Offset content slightly if needed, but since our sidebar overlay has absolute/fixed positioning with high z-index,
-     keeping it overlay is cleaner. If we want to adjust the main page layout, we can target Google's container.
-     NotebookLM container: .main-container or selector. Overlay style keeps Google's flex/grid centered perfectly. */
-}
+/* The sidebar is a fixed overlay with a high z-index, so it floats above
+   NotebookLM's own layout without reflowing it. No page-width adjustment is
+   needed; the previously empty `body.nlm-sidebar-open` rule was removed. */

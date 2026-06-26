@@ -2,19 +2,29 @@ let ws = null;
 let reconnectTimer = null;
 let keepAliveTimer = null;
 
+// Tracks whether we have ever connected, so we only log a single calm notice
+// when the optional server is offline rather than spamming the console on
+// every 5-second reconnect attempt.
+let hasLoggedOffline = false;
+
 function connect() {
-  console.log('Attempting to connect to NotebookLM companion server...');
-  
   if (ws) {
     try {
       ws.close();
     } catch (e) {}
   }
 
-  ws = new WebSocket('ws://localhost:3000');
+  try {
+    ws = new WebSocket('ws://localhost:3000');
+  } catch (e) {
+    // Constructing the socket can throw in some environments; treat as offline.
+    scheduleReconnect();
+    return;
+  }
 
   ws.onopen = () => {
     console.log('Connected to companion server successfully');
+    hasLoggedOffline = false;
     if (reconnectTimer) {
       clearInterval(reconnectTimer);
       reconnectTimer = null;
@@ -71,17 +81,27 @@ function connect() {
   };
 
   ws.onclose = () => {
-    console.log('WebSocket closed. Retrying connection in 5 seconds...');
     clearInterval(keepAliveTimer);
     keepAliveTimer = null;
-    if (!reconnectTimer) {
-      reconnectTimer = setInterval(connect, 5000);
-    }
+    scheduleReconnect();
   };
 
-  ws.onerror = (err) => {
-    console.error('WebSocket connection error:', err);
+  ws.onerror = () => {
+    // The companion server is optional. When it is absent we get an error on
+    // every attempt — log a single calm, non-error notice instead of spamming
+    // console.error. Folder functionality works fully without the server.
+    if (!hasLoggedOffline) {
+      console.log('NotebookLM companion server offline (optional). Folder features work without it; will retry in the background.');
+      hasLoggedOffline = true;
+    }
+    // Errors are typically followed by onclose, which schedules the reconnect.
   };
+}
+
+function scheduleReconnect() {
+  if (!reconnectTimer) {
+    reconnectTimer = setInterval(connect, 5000);
+  }
 }
 
 // Initial connection trigger

@@ -4,6 +4,61 @@ let folderData = { folders: [] };
 let notebooksList = [];
 let isConnected = false;
 
+const STORAGE_KEY = 'nlm_folders';
+
+// -------------------------------------------------------------
+// GENERIC HELPERS
+// -------------------------------------------------------------
+
+// Escape a string for safe interpolation into innerHTML. Prevents folder
+// names / notebook titles like `<img onerror=...>` from injecting markup.
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Real text-matching helper to replace the invalid `:contains()` pseudo-selector.
+// Queries `selector` (default 'button') and returns the first element whose
+// textContent / innerText / aria-label contains `text` (case-insensitive).
+function findElementByText(selector, text) {
+  if (!text) return null;
+  const needle = String(text).toLowerCase();
+  const nodes = document.querySelectorAll(selector || '*');
+  for (const el of nodes) {
+    const content = (el.innerText || el.textContent || '').toLowerCase();
+    const aria = (el.getAttribute && el.getAttribute('aria-label') || '').toLowerCase();
+    if (content.includes(needle) || aria.includes(needle)) {
+      return el;
+    }
+  }
+  return null;
+}
+
+// Convenience wrapper: find a <button> (or button-role element) by its text.
+function findButtonByText(text) {
+  return findElementByText('button, [role="button"]', text);
+}
+
+// Safe single-element query: logs a clear warning and returns null instead of
+// letting a missing node turn into a downstream TypeError.
+function safeQuery(selector, root) {
+  try {
+    const el = (root || document).querySelector(selector);
+    if (!el) {
+      console.warn(`NotebookLM Folderizer: no element matched selector "${selector}"`);
+    }
+    return el;
+  } catch (err) {
+    console.warn(`NotebookLM Folderizer: invalid selector "${selector}":`, err.message);
+    return null;
+  }
+}
+
 // Initialize when page is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
@@ -29,8 +84,9 @@ function init() {
     console.log('Content script received command:', message.type);
 
     if (message.type === 'list_notebooks') {
+      // Single response path: background only relays runtime.sendMessage packets
+      // back to the companion server, so respond exclusively through that channel.
       fetchNotebooksList().then(notebooks => {
-        sendResponse({ data: notebooks }); // Extension messaging direct callback
         chrome.runtime.sendMessage({
           id: message.id,
           type: 'response',
@@ -43,8 +99,8 @@ function init() {
           data: { error: err.message }
         });
       });
-      return true; // Keep message channel open
-    } 
+      return false; // No synchronous sendResponse; reply travels via sendMessage
+    }
     
     else if (message.type === 'chat_request') {
       handleChatRequest(message.id, message.data);
@@ -147,28 +203,92 @@ async function checkServerStatus() {
   }
 }
 
-async function loadFolders() {
-  try {
-    const res = await fetch('http://localhost:3000/api/folders');
-    if (res.ok) {
-      folderData = await res.json();
-      renderSidebar();
-    }
-  } catch (e) {
-    console.error('Failed to load folders configuration:', e);
+// Default folder structure seeded on first run so the UI is never blank.
+function defaultFolderData() {
+  return {
+    folders: [
+      { id: 'starter-research', name: 'Research', parentId: null, notebookIds: [] },
+      { id: 'starter-personal', name: 'Personal', parentId: null, notebookIds: [] }
+    ]
+  };
+}
+
+// Normalize arbitrary stored/loaded data into a valid { folders: [...] } shape.
+function normalizeFolderData(data) {
+  if (!data || !Array.isArray(data.folders)) {
+    return defaultFolderData();
   }
+  return { folders: data.folders };
+}
+
+// chrome.storage.local is the source of truth for folders. The companion
+// server is an optional sync target only. Folders work fully offline.
+function readFoldersFromStorage() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get([STORAGE_KEY], (result) => {
+        if (chrome.runtime.lastError) {
+          console.warn('NotebookLM Folderizer: storage read failed:', chrome.runtime.lastError.message);
+          resolve(null);
+          return;
+        }
+        resolve(result ? result[STORAGE_KEY] : null);
+      });
+    } catch (e) {
+      console.warn('NotebookLM Folderizer: storage unavailable:', e.message);
+      resolve(null);
+    }
+  });
+}
+
+function writeFoldersToStorage(data) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.set({ [STORAGE_KEY]: data }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('NotebookLM Folderizer: storage write failed:', chrome.runtime.lastError.message);
+        }
+        resolve();
+      });
+    } catch (e) {
+      console.warn('NotebookLM Folderizer: storage write unavailable:', e.message);
+      resolve();
+    }
+  });
+}
+
+async function loadFolders() {
+  const stored = await readFoldersFromStorage();
+
+  if (stored && Array.isArray(stored.folders)) {
+    folderData = normalizeFolderData(stored);
+  } else {
+    // First run (or empty/corrupt storage): seed a sensible default and persist.
+    folderData = defaultFolderData();
+    await writeFoldersToStorage(folderData);
+  }
+
+  renderSidebar();
 }
 
 async function saveFolders() {
-  try {
-    await fetch('http://localhost:3000/api/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(folderData)
-    });
-    renderSidebar();
-  } catch (e) {
-    console.error('Failed to save folders configuration:', e);
+  // Persist to local storage first — this is the offline source of truth.
+  await writeFoldersToStorage(folderData);
+  renderSidebar();
+
+  // Best-effort optional sync to the companion server when available.
+  // Failure here is non-fatal and must not spam the console with errors.
+  if (isConnected) {
+    try {
+      await fetch('http://localhost:3000/api/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(folderData)
+      });
+    } catch (e) {
+      // Server went away mid-session; storage already holds the truth.
+      console.warn('NotebookLM Folderizer: optional server sync skipped:', e.message);
+    }
   }
 }
 
@@ -284,11 +404,11 @@ function renderSidebar() {
     unorganizedContainer.innerHTML = `<div style="font-size: 12px; color: var(--nlm-text-secondary); text-align: center; padding: 12px;">No unorganized notebooks</div>`;
   } else {
     unorganizedContainer.innerHTML = unorganized.map(nb => `
-      <div class="nlm-notebook-item" draggable="true" data-notebook-id="${nb.id}">
+      <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
         <span class="nlm-notebook-icon">📓</span>
-        <span class="nlm-notebook-link" data-notebook-id="${nb.id}">${nb.title}</span>
+        <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
         <div class="nlm-notebook-actions">
-          <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${nb.id}">📂</button>
+          <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
         </div>
       </div>
     `).join('');
@@ -306,25 +426,27 @@ function renderFolderNode(parentId, depth) {
     const childFoldersHtml = renderFolderNode(node.id, depth + 1);
     const notebooksInFolder = notebooksList.filter(n => node.notebookIds && node.notebookIds.includes(n.id));
 
+    const folderId = escapeHtml(node.id);
+    const folderName = escapeHtml(node.name);
     html += `
-      <div class="nlm-folder" data-folder-id="${node.id}">
-        <div class="nlm-folder-header" draggable="true" data-folder-id="${node.id}">
+      <div class="nlm-folder" data-folder-id="${folderId}">
+        <div class="nlm-folder-header" draggable="true" data-folder-id="${folderId}">
           <span class="nlm-folder-icon">📁</span>
-          <span class="nlm-folder-title" title="${node.name}">${node.name}</span>
+          <span class="nlm-folder-title" title="${folderName}">${folderName}</span>
           <div class="nlm-folder-actions">
-            <button class="nlm-action-btn rename-folder-btn" data-folder-id="${node.id}" title="Rename">✏️</button>
-            <button class="nlm-action-btn add-subfolder-btn" data-folder-id="${node.id}" title="Add Subfolder">➕</button>
-            <button class="nlm-action-btn delete-folder-btn" data-folder-id="${node.id}" title="Delete">🗑️</button>
+            <button class="nlm-action-btn rename-folder-btn" data-folder-id="${folderId}" title="Rename">✏️</button>
+            <button class="nlm-action-btn add-subfolder-btn" data-folder-id="${folderId}" title="Add Subfolder">➕</button>
+            <button class="nlm-action-btn delete-folder-btn" data-folder-id="${folderId}" title="Delete">🗑️</button>
           </div>
         </div>
-        <div class="nlm-folder-children" data-folder-id="${node.id}">
+        <div class="nlm-folder-children" data-folder-id="${folderId}">
           ${childFoldersHtml}
           ${notebooksInFolder.map(nb => `
-            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${nb.id}">
+            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
               <span class="nlm-notebook-icon">📓</span>
-              <span class="nlm-notebook-link" data-notebook-id="${nb.id}">${nb.title}</span>
+              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
               <div class="nlm-notebook-actions">
-                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${nb.id}">📂</button>
+                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
               </div>
             </div>
           `).join('')}
@@ -435,7 +557,7 @@ function showMoveDropdown(anchorEl, notebookId) {
   dropdown.innerHTML = `
     <div class="nlm-dropdown-item" data-folder-id="unorganized">🚫 Unorganized</div>
     ${folderData.folders.map(f => `
-      <div class="nlm-dropdown-item" data-folder-id="${f.id}">📁 ${f.name}</div>
+      <div class="nlm-dropdown-item" data-folder-id="${escapeHtml(f.id)}">📁 ${escapeHtml(f.name)}</div>
     `).join('')}
   `;
 
@@ -551,27 +673,44 @@ async function handleChatRequest(requestId, data) {
     let sendBtn = null;
     let attempts = 0;
 
-    // Retry checking DOM elements
+    // Retry checking DOM elements. Use resilient, valid selectors with
+    // fallbacks (aria-label, role, submit type) plus a text-match helper.
     while (attempts < 10 && (!inputEl || !sendBtn)) {
-      inputEl = document.querySelector('textarea, [contenteditable="true"]');
-      sendBtn = document.querySelector('button[aria-label*="Send"], button[type="submit"], button svg[path*="send"]');
+      inputEl = document.querySelector('textarea, [contenteditable="true"], input[type="text"]');
+
+      // Valid native selectors only (the old `button svg[path*="send"]` was an
+      // invalid SyntaxError-throwing selector and has been removed).
+      sendBtn = document.querySelector(
+        'button[aria-label*="Send" i], button[type="submit"], button[aria-label*="submit" i]'
+      );
+
       if (!sendBtn) {
-        // Fallback: search for buttons with specific class or icon
-        document.querySelectorAll('button').forEach(btn => {
-          if (btn.innerHTML.includes('send') || btn.getAttribute('aria-label') === 'Send') {
-            sendBtn = btn;
-          }
+        // Fallback 1: button containing an svg whose markup mentions "send".
+        const svgBtn = Array.from(document.querySelectorAll('button')).find(btn => {
+          const svg = btn.querySelector('svg');
+          return svg && /send/i.test(svg.outerHTML);
         });
+        if (svgBtn) sendBtn = svgBtn;
       }
-      
+
+      if (!sendBtn) {
+        // Fallback 2: match by visible text / aria-label.
+        sendBtn = findButtonByText('Send');
+      }
+
       if (!inputEl || !sendBtn) {
         attempts++;
         await new Promise(r => setTimeout(r, 1000));
       }
     }
 
-    if (!inputEl || !sendBtn) {
-      throw new Error('Could not find chat input or send button in the notebook UI');
+    if (!inputEl) {
+      console.warn('NotebookLM Folderizer: chat input not found in notebook UI');
+      throw new Error('Could not find chat input in the notebook UI');
+    }
+    if (!sendBtn) {
+      console.warn('NotebookLM Folderizer: send button not found in notebook UI');
+      throw new Error('Could not find send button in the notebook UI');
     }
 
     // 3. Clear and Type the Prompt
@@ -672,34 +811,38 @@ async function handleGenerateProduct(requestId, data) {
       return;
     }
 
-    // 1. Locate Notebook Guide button and click it to toggle Studio Panel
-    let guideBtn = document.querySelector('button[aria-label*="Guide"], button:contains("Guide"), .notebook-guide-button');
+    // 1. Locate Notebook Guide button and click it to toggle Studio Panel.
+    // Use valid selectors (the old `button:contains("Guide")` was invalid and
+    // threw a SyntaxError); fall back to a real text-match helper.
+    let guideBtn = document.querySelector(
+      'button[aria-label*="Guide" i], .notebook-guide-button'
+    );
     if (!guideBtn) {
-      // Fallback search
-      document.querySelectorAll('button').forEach(btn => {
-        if (btn.innerText.includes('Guide') || btn.innerText.includes('Notebook Guide')) {
-          guideBtn = btn;
-        }
-      });
+      guideBtn = findButtonByText('Guide');
     }
 
     if (guideBtn) {
       guideBtn.click();
       await new Promise(r => setTimeout(r, 1000));
+    } else {
+      console.warn('NotebookLM Folderizer: Notebook Guide button not found; continuing to look for the format button');
     }
 
-    // 2. Find specific format generator button
+    // 2. Find specific format generator button by visible text.
     let formatBtn = null;
-    let formatLabel = format.toLowerCase().replace('-', ' '); // e.g. "study guide" or "briefing doc"
-    
-    document.querySelectorAll('button, .studio-button').forEach(btn => {
-      const text = btn.innerText.toLowerCase();
-      if (text.includes(formatLabel) || (formatLabel.includes('briefing') && text.includes('briefing'))) {
-        formatBtn = btn;
-      }
-    });
+    const formatLabel = String(format || '').toLowerCase().replace(/-/g, ' '); // e.g. "study guide" or "briefing doc"
+
+    if (formatLabel) {
+      document.querySelectorAll('button, [role="button"], .studio-button').forEach(btn => {
+        const text = (btn.innerText || btn.textContent || '').toLowerCase();
+        if (text.includes(formatLabel) || (formatLabel.includes('briefing') && text.includes('briefing'))) {
+          formatBtn = btn;
+        }
+      });
+    }
 
     if (!formatBtn) {
+      console.warn(`NotebookLM Folderizer: no generation button found for format "${format}"`);
       throw new Error(`Could not find generation button in Studio Guide panel for format: ${format}`);
     }
 
@@ -751,9 +894,4 @@ async function handleGenerateProduct(requestId, data) {
       data: { error: err.message }
     });
   }
-}
-
-// Quick helper extension: jQuery-like contains selector
-if (!Element.prototype.matches) {
-  Element.prototype.matches = Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
 }

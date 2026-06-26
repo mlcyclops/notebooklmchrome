@@ -91,6 +91,11 @@ app.get('/api/folders', (req, res) => {
   const dbPath = path.join(__dirname, 'folders.json');
   fs.readFile(dbPath, 'utf8', (err, data) => {
     if (err) {
+      // The folders.json file is created lazily on first POST. If it does not
+      // exist yet (first run), return a sensible empty default instead of 500.
+      if (err.code === 'ENOENT') {
+        return res.json({ folders: [] });
+      }
       return res.status(500).json({ error: 'Failed to read folders list database' });
     }
     try {
