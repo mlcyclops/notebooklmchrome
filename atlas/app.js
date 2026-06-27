@@ -26,6 +26,11 @@
       var label = V.connectionLabel(s);
       $('status-text').textContent = label + ' · ' + location.host;
       $('status').classList.toggle('off', label !== 'Connected');
+      if (s && s.version) {
+        var v = 'v' + s.version;
+        $('help-version').textContent = v;
+        $('help-version2').textContent = v;
+      }
       // When no extension is connected, the library/notebooks cannot load. Tell
       // the user how to fix it instead of just showing an empty list.
       if (label !== 'Connected' && !state.folders.length) showConnectHint();
@@ -188,6 +193,14 @@
   $('studypack-btn').addEventListener('click', generateStudy);
   $('watch-switch').addEventListener('click', toggleWatch);
   $('watch-switch').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleWatch(); } });
+
+  // ---- help / about popup ----
+  function openHelp() { $('help-overlay').hidden = false; }
+  function closeHelp() { $('help-overlay').hidden = true; }
+  $('help-btn').addEventListener('click', openHelp);
+  $('help-close').addEventListener('click', closeHelp);
+  $('help-overlay').addEventListener('click', function (e) { if (e.target === this) closeHelp(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('help-overlay').hidden) closeHelp(); });
 
   loadStatus();
   loadFolders();

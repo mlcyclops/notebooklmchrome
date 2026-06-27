@@ -371,6 +371,7 @@ app.get('/api/watch/plan', async (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
+    version: require('./package.json').version,
     port: PORT,
     connectedClients: clients.length,
     activeRequests: pendingRequests.size,

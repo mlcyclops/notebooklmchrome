@@ -38,3 +38,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0017 | [Desktop connectivity and live folders from the extension](0017-desktop-connectivity-live-folders.md) | Accepted | 2026-06-27 |
 | 0018 | [Fix the relay so async content-script replies are not dropped](0018-relay-async-ack-fix.md) | Accepted | 2026-06-27 |
 | 0019 | [Chrome Web Store listing package](0019-chrome-web-store-package.md) | Accepted | 2026-06-27 |
+| 0020 | [Atlas UI polish and custom Help popup](0020-atlas-ui-polish-and-help.md) | Accepted | 2026-06-27 |

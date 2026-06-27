@@ -37,6 +37,12 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Atlas UI polish + custom Help popup (ADR-0020)
+- Added a custom in-app Help/About popup (soft 22px-rounded modal, blurred overlay, open via a topbar "?" button, close via X / overlay click / Esc). It explains how to use the app in 3 steps + tips, and shows the support email (nicholas.chadwick.ctr@gmail.com), a "View on GitHub" link (github.com/mlcyclops/notebooklmchrome), and the current version (from `/status`, now exposing `version`).
+- Frame polish: themed scrollbars, topbar accent seam, refined empty/connect states. Bumped version to 1.0.2.
+- Verified via computed styles in the live preview (screenshot tool times out on the polling page): overlay centered/flex, modal radius 22px + shadow, 3 steps + 3 tips, correct mailto/GitHub hrefs, version v1.0.2 in chip + footer. Full suite 11 suites green.
+- Next: build + publish v1.0.2 installers (with the relay fix, live folders, icons, and this Help UI) and update README download links.
+
 ### 2026-06-27 — Chrome Web Store package (ADR-0019)
 - Prepped one-click install. Added extension icons (`tools/build-extension-icons.js` -> `extension/icons/icon{16,32,48,128}.png`) and wired `manifest.json` `icons`. Made `tools/package-extension.js` recurse into subfolders so `icons/` ships inside `dist/{chrome,edge,firefox}.zip` (8 files now). Added `store/` docs: `store-listing.md`, `privacy-policy.md`, `SUBMISSION.md` (Chrome/Edge/Firefox checklist; trademark-safe "Folderizer for NotebookLM" name; support email + privacy URL). README notes the store package + one-click coming.
 - Tested: packaging test updated to count files dynamically + assert icons bundled + CRC round-trip (15/15); full suite green.
