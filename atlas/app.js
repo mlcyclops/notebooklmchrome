@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   var V = window.AtlasView;
-  var state = { folders: [], selected: null, watch: false };
+  var state = { folders: [], selected: null, watch: false, connected: false };
 
   function $(id) { return document.getElementById(id); }
   function api(path, opts) {
@@ -33,7 +33,15 @@
       }
       // When no extension is connected, the library/notebooks cannot load. Tell
       // the user how to fix it instead of just showing an empty list.
-      if (label !== 'Connected' && !state.folders.length) showConnectHint();
+      var connected = label === 'Connected';
+      if (!connected && !state.folders.length) showConnectHint();
+      // Auto-populate when the extension connects after Atlas opened, or whenever
+      // we are connected but the library is still empty (no manual reload needed).
+      if (connected && (!state.connected || !state.folders.length)) {
+        loadFolders();
+        loadGraph();
+      }
+      state.connected = connected;
     }).catch(function () {
       $('status-text').textContent = 'Server offline';
       $('status').classList.add('off');
