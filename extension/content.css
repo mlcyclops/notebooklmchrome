@@ -1,34 +1,77 @@
 /* NotebookLM Folderizer Injected Sidebar Stylings */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
+/* =========================================================================
+   DESIGN SYSTEM (ADR-0008)
+   A small, self-contained token set drives every component below. Editing a
+   token here changes the whole sidebar consistently. Kept scoped to our
+   selectors so it never leaks into NotebookLM's own styles.
+   ========================================================================= */
 :root {
-  --nlm-bg: rgba(20, 21, 24, 0.95);
+  /* Surfaces & structure */
+  --nlm-bg: rgba(18, 19, 22, 0.94);
+  --nlm-surface-1: rgba(255, 255, 255, 0.03);
+  --nlm-surface-2: rgba(255, 255, 255, 0.06);
   --nlm-border: rgba(255, 255, 255, 0.08);
+  --nlm-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
   --nlm-text-primary: #f3f4f6;
-  --nlm-text-secondary: #9ca3af;
-  --nlm-accent: #a78bfa; /* Soft violet */
+  --nlm-text-secondary: #9aa0aa;
+
+  /* Accent ramp (soft violet) */
+  --nlm-accent: #a78bfa;
   --nlm-accent-hover: #c084fc;
-  --nlm-folder-bg: rgba(255, 255, 255, 0.03);
-  --nlm-folder-hover: rgba(255, 255, 255, 0.07);
-  --nlm-notebook-bg: rgba(167, 139, 250, 0.08);
-  --nlm-notebook-hover: rgba(167, 139, 250, 0.15);
+  --nlm-accent-soft: rgba(167, 139, 250, 0.12);
+  --nlm-accent-softer: rgba(167, 139, 250, 0.08);
+  --nlm-accent-glow: rgba(167, 139, 250, 0.45);
+
+  /* Per-element tints (kept for backward-compatible names) */
+  --nlm-folder-bg: var(--nlm-surface-1);
+  --nlm-folder-hover: var(--nlm-surface-2);
+  --nlm-notebook-bg: var(--nlm-accent-softer);
+  --nlm-notebook-hover: var(--nlm-accent-soft);
+
+  /* Semantic */
+  --nlm-success: #34d399;
+  --nlm-danger: #f87171;
+
+  /* Radius scale */
+  --nlm-r-sm: 6px;
+  --nlm-r: 9px;
+  --nlm-r-lg: 13px;
+  --nlm-r-pill: 999px;
+
+  /* Elevation */
+  --nlm-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --nlm-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.38);
+  --nlm-shadow-3: 12px 0 40px rgba(0, 0, 0, 0.5);
+
+  /* Motion: one easing language, three speeds */
+  --nlm-ease: cubic-bezier(0.16, 1, 0.3, 1);       /* expo-out: snappy settle */
+  --nlm-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);    /* standard */
+  --nlm-dur-fast: 0.13s;
+  --nlm-dur: 0.22s;
+  --nlm-dur-slow: 0.34s;
 }
 
-/* Sidebar Container */
+/* =========================================================================
+   SIDEBAR CONTAINER
+   ========================================================================= */
 #nlm-sidebar {
   position: fixed;
   top: 0;
-  left: -320px;
-  width: 320px;
+  left: -384px;
+  width: 372px;
   height: 100vh;
   background: var(--nlm-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
   border-right: 1px solid var(--nlm-border);
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--nlm-shadow-3);
   z-index: 999999;
-  transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: left var(--nlm-dur-slow) var(--nlm-ease);
   display: flex;
   flex-direction: column;
   color: var(--nlm-text-primary);
@@ -36,69 +79,119 @@
   box-sizing: border-box;
 }
 
+/* A whisper-thin accent seam down the open edge for depth. */
+#nlm-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, var(--nlm-accent-glow), transparent);
+  opacity: 0;
+  transition: opacity var(--nlm-dur-slow) var(--nlm-ease);
+  pointer-events: none;
+}
+
 #nlm-sidebar.open {
   left: 0;
 }
 
-/* Toggle Floating Tab */
+#nlm-sidebar.open::after {
+  opacity: 0.5;
+}
+
+#nlm-sidebar *,
+#nlm-sidebar-toggle * {
+  box-sizing: border-box;
+}
+
+/* Accessible focus ring for keyboard users, scoped to our UI. */
+#nlm-sidebar :focus-visible,
+#nlm-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--nlm-accent);
+  outline-offset: 2px;
+  border-radius: var(--nlm-r-sm);
+}
+
+/* =========================================================================
+   TOGGLE FLOATING TAB
+   ========================================================================= */
 #nlm-sidebar-toggle {
   position: fixed;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 36px;
-  height: 90px;
+  height: 92px;
   background: var(--nlm-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--nlm-border);
   border-left: none;
-  border-radius: 0 12px 12px 0;
-  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
+  border-radius: 0 var(--nlm-r-lg) var(--nlm-r-lg) 0;
+  box-shadow: var(--nlm-shadow-1);
   z-index: 1000000;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s;
-  color: var(--nlm-text-primary);
+  transition: left var(--nlm-dur-slow) var(--nlm-ease),
+              background-color var(--nlm-dur) var(--nlm-ease-soft),
+              color var(--nlm-dur) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur) var(--nlm-ease-soft);
+  color: var(--nlm-text-secondary);
 }
 
 #nlm-sidebar-toggle:hover {
-  background: var(--nlm-folder-hover);
+  background: var(--nlm-surface-2);
   color: var(--nlm-accent);
+  box-shadow: var(--nlm-shadow-2), 0 0 18px var(--nlm-accent-glow);
 }
 
 #nlm-sidebar-toggle.open {
-  left: 320px;
+  left: 372px;
 }
 
 #nlm-sidebar-toggle svg {
   width: 20px;
   height: 20px;
-  transition: transform 0.3s;
+  transition: transform var(--nlm-dur-slow) var(--nlm-ease);
+}
+
+#nlm-sidebar-toggle:hover svg {
+  transform: translateX(2px);
 }
 
 #nlm-sidebar-toggle.open svg {
   transform: rotate(180deg);
 }
 
+#nlm-sidebar-toggle.open:hover svg {
+  transform: rotate(180deg) translateX(2px);
+}
+
 #nlm-sidebar-toggle span {
   font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.6px;
   writing-mode: vertical-lr;
   margin-top: 6px;
   font-weight: 600;
   opacity: 0.8;
 }
 
-/* Sidebar Header */
+/* =========================================================================
+   HEADER
+   ========================================================================= */
 .nlm-header {
-  padding: 24px 20px;
+  padding: 22px 20px 18px;
   border-bottom: 1px solid var(--nlm-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 .nlm-title-row {
@@ -109,38 +202,30 @@
 
 .nlm-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
-  letter-spacing: 0.5px;
-  background: linear-gradient(135deg, #f3f4f6 30%, #a78bfa 100%);
+  letter-spacing: 0.3px;
+  background: linear-gradient(120deg, #ffffff 20%, var(--nlm-accent) 90%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.nlm-sync-status {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444; /* Offline default */
-  box-shadow: 0 0 8px #ef4444;
-  transition: background 0.3s, box-shadow 0.3s;
-}
-
-.nlm-sync-status.online {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-}
-
+/* Primary "New Root Folder" button */
 .nlm-btn-add {
-  background: rgba(167, 139, 250, 0.15);
+  background: var(--nlm-accent-soft);
   border: 1px dashed var(--nlm-accent);
   color: var(--nlm-accent);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: var(--nlm-r);
+  padding: 9px 12px;
+  font-family: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -148,15 +233,26 @@
 }
 
 .nlm-btn-add:hover {
-  background: rgba(167, 139, 250, 0.25);
+  background: var(--nlm-accent-soft);
+  border-color: var(--nlm-accent-hover);
+  border-style: solid;
+  box-shadow: 0 0 0 1px var(--nlm-accent-soft), 0 6px 18px rgba(167, 139, 250, 0.18);
   transform: translateY(-1px);
 }
 
 .nlm-btn-add:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.99);
 }
 
-/* Import / export buttons (ADR-0004) */
+.nlm-btn-add span {
+  transition: transform var(--nlm-dur) var(--nlm-ease);
+}
+
+.nlm-btn-add:hover span {
+  transform: rotate(90deg);
+}
+
+/* Secondary import / export buttons (ADR-0004) */
 .nlm-header-actions {
   display: flex;
   gap: 8px;
@@ -164,15 +260,19 @@
 
 .nlm-btn-secondary {
   flex: 1;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--nlm-surface-1);
   border: 1px solid var(--nlm-border);
   color: var(--nlm-text-secondary);
-  border-radius: 8px;
-  padding: 7px 10px;
+  border-radius: var(--nlm-r);
+  padding: 8px 10px;
+  font-family: inherit;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.1s;
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              color var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -180,24 +280,25 @@
 }
 
 .nlm-btn-secondary:hover {
-  background: rgba(167, 139, 250, 0.15);
+  background: var(--nlm-accent-soft);
   border-color: var(--nlm-accent);
   color: var(--nlm-accent);
   transform: translateY(-1px);
 }
 
 .nlm-btn-secondary:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.99);
 }
 
 .nlm-import-status {
   font-size: 12px;
   line-height: 1.4;
   color: var(--nlm-text-secondary);
-  background: rgba(167, 139, 250, 0.1);
+  background: var(--nlm-accent-softer);
   border: 1px solid var(--nlm-border);
-  border-radius: 8px;
+  border-radius: var(--nlm-r);
   padding: 8px 10px;
+  animation: nlm-fade-in var(--nlm-dur) var(--nlm-ease) both;
 }
 
 .nlm-import-status.error {
@@ -206,74 +307,123 @@
   border-color: rgba(248, 113, 113, 0.4);
 }
 
-/* Sidebar Body / Content Area */
+/* =========================================================================
+   BODY / SCROLL AREA
+   ========================================================================= */
 .nlm-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
 }
 
 .nlm-body::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .nlm-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--nlm-r-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.nlm-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: padding-box;
 }
 
 .nlm-section-title {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.6px;
   color: var(--nlm-text-secondary);
   font-weight: 600;
   margin-bottom: 10px;
   padding-left: 4px;
 }
 
-/* Folder Tree Node */
+/* =========================================================================
+   FOLDER TREE
+   ========================================================================= */
 .nlm-folder {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-bottom: 6px;
-  border-radius: 8px;
-  transition: background-color 0.2s;
+  border-radius: var(--nlm-r);
 }
 
 .nlm-folder-header {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: 9px 10px;
   background: var(--nlm-folder-bg);
   border: 1px solid var(--nlm-border);
-  border-radius: 8px;
+  border-radius: var(--nlm-r);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
   position: relative;
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
+}
+
+/* Soft sheen that fades in on hover (opacity only). Rounded to match the header
+   so we don't need overflow:hidden — which would clip the customize popover. */
+.nlm-folder-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--nlm-accent-softer), transparent 60%);
+  opacity: 0;
+  transition: opacity var(--nlm-dur) var(--nlm-ease-soft);
+  pointer-events: none;
 }
 
 .nlm-folder-header:hover {
   background: var(--nlm-folder-hover);
-  border-color: rgba(167, 139, 250, 0.3);
+  border-color: rgba(167, 139, 250, 0.35);
+  box-shadow: var(--nlm-shadow-1);
+  transform: translateY(-1px);
+}
+
+.nlm-folder-header:hover::before {
+  opacity: 1;
+}
+
+.nlm-folder-header:active {
+  transform: translateY(0);
 }
 
 .nlm-folder-header.drag-over {
-  background: rgba(167, 139, 250, 0.15) !important;
+  background: var(--nlm-accent-soft) !important;
   border-color: var(--nlm-accent) !important;
   border-style: dashed;
+  box-shadow: 0 0 0 1px var(--nlm-accent-soft), 0 0 18px var(--nlm-accent-glow);
 }
 
 .nlm-folder-icon {
-  margin-right: 8px;
+  margin-right: 9px;
   color: var(--nlm-accent);
   display: flex;
   align-items: center;
   font-size: 16px;
+  position: relative;
+  transition: transform var(--nlm-dur) var(--nlm-ease),
+              filter var(--nlm-dur) var(--nlm-ease-soft);
+}
+
+/* The hover "pop" you asked for: icon scales, tilts, and gains a glow. */
+.nlm-folder-header:hover .nlm-folder-icon {
+  transform: scale(1.18) rotate(-4deg);
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .nlm-folder-title {
@@ -284,17 +434,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   padding-right: 8px;
+  position: relative;
 }
 
 .nlm-folder-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transform: translateX(6px);
+  transition: opacity var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur) var(--nlm-ease);
+  position: relative;
 }
 
 .nlm-folder-header:hover .nlm-folder-actions {
   opacity: 1;
+  transform: translateX(0);
 }
 
 .nlm-action-btn {
@@ -303,71 +458,144 @@
   color: var(--nlm-text-secondary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--nlm-r-sm);
+  font-size: 13px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
 }
 
 .nlm-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f3f4f6;
+  background: var(--nlm-surface-2);
+  color: var(--nlm-text-primary);
+  transform: scale(1.15);
 }
 
-.nlm-action-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+.nlm-action-btn:active {
+  transform: scale(0.95);
 }
 
-/* Nested Folder Children Container */
+.nlm-action-btn.delete:hover,
+.nlm-action-btn.delete-folder-btn:hover {
+  background: rgba(248, 113, 113, 0.16);
+  color: var(--nlm-danger);
+}
+
+/* Accordion chevron */
+.nlm-folder-chevron {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nlm-text-secondary);
+  /* Expanded by default: point the chevron down. */
+  transform: rotate(90deg);
+  transition: transform var(--nlm-dur) var(--nlm-ease),
+              color var(--nlm-dur) var(--nlm-ease-soft);
+}
+
+.nlm-folder-chevron svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Collapsed: point right. */
+.nlm-folder-header.is-collapsed .nlm-folder-chevron {
+  transform: rotate(0deg);
+}
+
+.nlm-folder-header:hover .nlm-folder-chevron {
+  color: var(--nlm-accent);
+}
+
+/* A spacer keeps childless folders aligned with foldable ones. */
+.nlm-folder-chevron--empty {
+  visibility: hidden;
+}
+
+/* Nested children — animated accordion via grid-template-rows (works for
+   unknown content height; transitions cleanly between 0fr and 1fr). */
 .nlm-folder-children {
   margin-left: 14px;
   padding-left: 12px;
-  border-left: 1px dashed rgba(255, 255, 255, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.2s;
+  border-left: 1px dashed var(--nlm-border-strong);
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--nlm-dur-slow) var(--nlm-ease);
 }
 
 .nlm-folder-children.collapsed {
-  display: none;
+  grid-template-rows: 0fr;
+  /* Fade the guide line out as it closes. */
+  border-left-color: transparent;
 }
 
-/* Notebook Items */
+.nlm-folder-children-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* =========================================================================
+   NOTEBOOK ITEMS
+   ========================================================================= */
 .nlm-notebook-item {
   display: flex;
   align-items: center;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--nlm-surface-1);
   border: 1px solid var(--nlm-border);
-  border-radius: 6px;
+  border-radius: var(--nlm-r-sm);
   cursor: grab;
-  transition: all 0.2s;
+  position: relative;
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
 }
 
 .nlm-notebook-item:hover {
   background: var(--nlm-notebook-hover);
-  border-color: rgba(167, 139, 250, 0.2);
-  transform: translateX(2px);
+  border-color: rgba(167, 139, 250, 0.3);
+  box-shadow: var(--nlm-shadow-1);
+  transform: translateX(3px);
 }
 
 .nlm-notebook-item:active {
   cursor: grabbing;
+  transform: translateX(3px) scale(0.99);
 }
 
 .nlm-notebook-item.dragging {
-  opacity: 0.4;
+  opacity: 0.45;
   border: 1px dashed var(--nlm-accent);
+  box-shadow: 0 0 18px var(--nlm-accent-glow);
 }
 
 .nlm-notebook-icon {
-  margin-right: 8px;
+  margin-right: 9px;
   color: var(--nlm-text-secondary);
   display: flex;
   align-items: center;
   font-size: 14px;
+  transition: transform var(--nlm-dur) var(--nlm-ease),
+              color var(--nlm-dur) var(--nlm-ease-soft),
+              filter var(--nlm-dur) var(--nlm-ease-soft);
+}
+
+.nlm-notebook-item:hover .nlm-notebook-icon {
+  color: var(--nlm-accent);
+  transform: scale(1.15) rotate(-4deg);
+  filter: drop-shadow(0 0 5px var(--nlm-accent-glow));
 }
 
 .nlm-notebook-link {
@@ -384,70 +612,100 @@
 .nlm-notebook-actions {
   display: flex;
   opacity: 0;
-  transition: opacity 0.2s;
+  transform: translateX(6px);
+  transition: opacity var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur) var(--nlm-ease);
 }
 
 .nlm-notebook-item:hover .nlm-notebook-actions {
   opacity: 1;
+  transform: translateX(0);
 }
 
-/* Dropdown Context Menu */
+/* =========================================================================
+   DROPDOWN / CONTEXT MENU
+   ========================================================================= */
 .nlm-dropdown {
   position: absolute;
   right: 10px;
-  top: calc(100% + 4px);
-  background: #1f2023;
-  border: 1px solid var(--nlm-border);
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  top: calc(100% + 6px);
+  background: #1c1d21;
+  border: 1px solid var(--nlm-border-strong);
+  border-radius: var(--nlm-r);
+  box-shadow: var(--nlm-shadow-2);
   z-index: 100000;
   display: flex;
   flex-direction: column;
   padding: 6px;
-  min-width: 140px;
+  min-width: 144px;
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
   pointer-events: none;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity var(--nlm-dur-fast) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
 }
 
 .nlm-dropdown.show {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
+}
+
+/* The popover is a child of the hover-revealed actions container, so moving the
+   mouse toward it would normally hide it (the header loses :hover). While a
+   dropdown is open, pin its actions container visible so it stays reachable. */
+.nlm-folder-actions:has(.nlm-dropdown.show),
+.nlm-notebook-actions:has(.nlm-dropdown.show) {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* The popover overflows its row and overlaps later rows, which paint after it
+   in DOM order and would otherwise intercept clicks. Lift the whole row/folder
+   that owns an open dropdown above its siblings so the popover is clickable. */
+.nlm-folder:has(.nlm-dropdown.show),
+.nlm-notebook-item:has(.nlm-dropdown.show) {
+  position: relative;
+  z-index: 50;
 }
 
 .nlm-dropdown-item {
   padding: 8px 12px;
   font-size: 13px;
   color: var(--nlm-text-secondary);
-  border-radius: 6px;
+  border-radius: var(--nlm-r-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              padding-left var(--nlm-dur-fast) var(--nlm-ease);
 }
 
 .nlm-dropdown-item:hover {
   background: var(--nlm-folder-hover);
   color: var(--nlm-text-primary);
+  padding-left: 16px;
 }
 
-/* Customize popover: folder color + icon picker (ADR-0003) */
+/* =========================================================================
+   CUSTOMIZE POPOVER: color + icon picker (ADR-0003)
+   ========================================================================= */
 .nlm-customize-popover {
-  min-width: 184px;
+  min-width: 188px;
   gap: 4px;
 }
 
 .nlm-customize-label {
   font-family: 'Outfit', sans-serif;
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--nlm-text-secondary);
-  padding: 4px 4px 2px;
+  padding: 6px 4px 2px;
 }
 
 .nlm-color-swatches {
@@ -458,22 +716,25 @@
 }
 
 .nlm-color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   border: 2px solid transparent;
   padding: 0;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  transition: transform var(--nlm-dur-fast) var(--nlm-ease),
+              border-color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur-fast) var(--nlm-ease-soft);
 }
 
 .nlm-color-swatch:hover {
-  transform: scale(1.15);
+  transform: scale(1.22);
+  box-shadow: 0 0 10px currentColor;
 }
 
 .nlm-color-swatch.selected {
   border-color: var(--nlm-text-primary);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
 .nlm-icon-choices {
@@ -486,17 +747,19 @@
 .nlm-icon-choice {
   background: var(--nlm-folder-bg);
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--nlm-r-sm);
   font-size: 15px;
   line-height: 1;
   padding: 5px 0;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  transition: background var(--nlm-dur-fast) var(--nlm-ease-soft),
+              border-color var(--nlm-dur-fast) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
 }
 
 .nlm-icon-choice:hover {
   background: var(--nlm-folder-hover);
-  transform: scale(1.08);
+  transform: scale(1.14);
 }
 
 .nlm-icon-choice.selected {
@@ -505,5 +768,161 @@
 }
 
 /* The sidebar is a fixed overlay with a high z-index, so it floats above
-   NotebookLM's own layout without reflowing it. No page-width adjustment is
-   needed; the previously empty `body.nlm-sidebar-open` rule was removed. */
+   NotebookLM's own layout without reflowing it. */
+
+/* =========================================================================
+   NOTEBOOK DETECTION STATES (ADR-0008): loading / error / verified-empty.
+   These replace the single hardcoded "No unorganized notebooks" string so the
+   UI never disguises a failed or in-flight fetch as an empty account.
+   ========================================================================= */
+
+/* Loading — skeleton rows that shimmer while the first fetch resolves. */
+.nlm-notebooks-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.nlm-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--nlm-r);
+  background: var(--nlm-folder-bg);
+}
+
+.nlm-skeleton-dot,
+.nlm-skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.10) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: nlm-shimmer 1.4s ease infinite;
+  border-radius: var(--nlm-r-sm);
+}
+
+.nlm-skeleton-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nlm-skeleton-bar {
+  height: 10px;
+  flex: 1;
+}
+
+@keyframes nlm-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* Shared message block for the error and verified-empty states. */
+.nlm-notebooks-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px 12px;
+  color: var(--nlm-text-secondary);
+  font-size: 12px;
+  animation: nlm-fade-in var(--nlm-dur-slow) var(--nlm-ease) both;
+}
+
+.nlm-message-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.nlm-message-text {
+  line-height: 1.4;
+}
+
+.nlm-notebooks-error .nlm-message-text {
+  color: var(--nlm-text-primary);
+}
+
+.nlm-btn-retry {
+  margin-top: 2px;
+  padding: 7px 18px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nlm-text-primary);
+  background: var(--nlm-notebook-bg);
+  border: 1px solid var(--nlm-border);
+  border-radius: var(--nlm-r);
+  cursor: pointer;
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft),
+              box-shadow var(--nlm-dur) var(--nlm-ease-soft),
+              transform var(--nlm-dur-fast) var(--nlm-ease);
+}
+
+.nlm-btn-retry:hover {
+  background: var(--nlm-notebook-hover);
+  border-color: var(--nlm-accent);
+  box-shadow: 0 0 16px var(--nlm-accent-glow);
+  transform: translateY(-1px);
+}
+
+.nlm-btn-retry:active {
+  transform: translateY(0) scale(0.99);
+}
+
+@keyframes nlm-fade-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   REDUCED MOTION — disable all non-essential animation/transforms.
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  #nlm-sidebar,
+  #nlm-sidebar-toggle,
+  #nlm-sidebar-toggle svg,
+  .nlm-btn-add,
+  .nlm-btn-add span,
+  .nlm-btn-secondary,
+  .nlm-btn-retry,
+  .nlm-folder-header,
+  .nlm-folder-icon,
+  .nlm-folder-chevron,
+  .nlm-folder-children,
+  .nlm-folder-actions,
+  .nlm-notebook-item,
+  .nlm-notebook-icon,
+  .nlm-notebook-actions,
+  .nlm-action-btn,
+  .nlm-color-swatch,
+  .nlm-icon-choice,
+  .nlm-dropdown,
+  .nlm-dropdown-item {
+    transition-duration: 0.01ms !important;
+  }
+
+  .nlm-skeleton-dot,
+  .nlm-skeleton-bar,
+  .nlm-notebooks-message,
+  .nlm-import-status {
+    animation: none !important;
+  }
+
+  /* Keep hover affordances legible but motionless. */
+  .nlm-folder-header:hover,
+  .nlm-notebook-item:hover {
+    transform: none;
+  }
+  .nlm-folder-header:hover .nlm-folder-icon,
+  .nlm-notebook-item:hover .nlm-notebook-icon {
+    transform: none;
+  }
+}
