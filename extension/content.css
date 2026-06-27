@@ -307,6 +307,86 @@
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+/* Cross-device sync toggle (ADR-0006) */
+.nlm-sync-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--nlm-text-secondary);
+  padding: 4px 2px;
+}
+
+.nlm-sync-toggle:hover {
+  color: var(--nlm-text-primary);
+}
+
+/* Visually-hidden native checkbox; the track/thumb provide the UI. */
+.nlm-sync-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.nlm-sync-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--nlm-r-pill);
+  background: var(--nlm-surface-2);
+  border: 1px solid var(--nlm-border-strong);
+  transition: background var(--nlm-dur) var(--nlm-ease-soft),
+              border-color var(--nlm-dur) var(--nlm-ease-soft);
+}
+
+.nlm-sync-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--nlm-text-secondary);
+  transition: transform var(--nlm-dur) var(--nlm-ease),
+              background var(--nlm-dur) var(--nlm-ease-soft);
+}
+
+.nlm-sync-toggle input:checked + .nlm-sync-track {
+  background: var(--nlm-accent-soft);
+  border-color: var(--nlm-accent);
+}
+
+.nlm-sync-toggle input:checked + .nlm-sync-track .nlm-sync-thumb {
+  transform: translateX(14px);
+  background: var(--nlm-accent);
+}
+
+.nlm-sync-toggle input:focus-visible + .nlm-sync-track {
+  outline: 2px solid var(--nlm-accent);
+  outline-offset: 2px;
+}
+
+.nlm-sync-status {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--nlm-text-secondary);
+  padding: 2px 2px 0;
+  animation: nlm-fade-in var(--nlm-dur) var(--nlm-ease) both;
+}
+
+.nlm-sync-status.nlm-sync-status-error {
+  color: #fca5a5;
+}
+
+.nlm-sync-status.nlm-sync-status-info {
+  color: var(--nlm-accent);
+}
+
 /* Search / filter (ADR-0005) */
 .nlm-search-row {
   position: relative;
@@ -994,8 +1074,14 @@
   .nlm-skeleton-dot,
   .nlm-skeleton-bar,
   .nlm-notebooks-message,
-  .nlm-import-status {
+  .nlm-import-status,
+  .nlm-sync-status {
     animation: none !important;
+  }
+
+  .nlm-sync-track,
+  .nlm-sync-thumb {
+    transition: none !important;
   }
 
   /* Keep hover affordances legible but motionless. */

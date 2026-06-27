@@ -8,6 +8,7 @@
 - ✅ Folder colors & icons: optional `color`/`icon` fields per folder, curated allow-listed palette + emoji set, inline customize popover, injection-safe rendering, backward-compatible normalization (ADR-0003).
 - ✅ Import / export folder structures (JSON): Export downloads a versioned `{version, exportedAt, data}` envelope; Import reads a file, validates/normalizes through `normalizeFolderData` + the color/icon sanitize allow-lists, and REPLACES the current folders after a `confirm()`. Offline-first, dependency-free (ADR-0004).
 - ✅ Search and filter within folders: debounced `<input type="search">` in the sidebar header filters the folder tree + unorganized list client-side, in memory, via a pure recursive `nodeMatchesQuery` predicate (folder name OR assigned notebook title OR descendant match; case-insensitive substring). Ancestors of a match stay visible/expanded; non-matching branches hide. Clear "×" button resets; empty query = full render; "No matches" empty state. Injection-safe escape-then-wrap highlighting. No data mutation/persistence (ADR-0005).
+- ✅ Sync folders across devices: opt-in cross-device sync built on `chrome.storage.sync` (no companion server, no new permissions). A sidebar header toggle persists `nlm_sync_enabled` in `chrome.storage.local` (default OFF). `chrome.storage.local` stays the always-present render source; when sync is ON, `writeFoldersToStorage` mirrors the same `nlm_folders` value into `chrome.storage.sync`, and a `chrome.storage.onChanged` listener (area `sync`) pulls remote edits into local + re-renders live (loop-guarded). A quota/error on a sync write degrades gracefully to local-only — keeps data, reverts the toggle, and surfaces a calm "Folder set too large to sync — kept locally" status. Last-write-wins conflict policy; CRDT/merge deferred (ADR-0006).
 
 ## Next Up
 - ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full ~80 owned notebooks render). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states replacing the always-on "No unorganized notebooks" string.
@@ -17,7 +18,6 @@
 - [ ] Confirm increment 2 visually on the live page; iterate on spacing/feel per user taste
 - [ ] Quiet the `localhost:3000/status` console spam (optional server poll; browser logs ERR_CONNECTION_REFUSED every 5s)
 - [ ] Search and filter within folders
-- [ ] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
 
@@ -27,6 +27,16 @@
 ---
 
 ## Session Log (append-only, newest first)
+
+### 2026-06-26 — Sync folders across devices (ADR-0006)
+- Implemented opt-in cross-device folder sync on `chrome.storage.sync` — no companion server, no new permissions (existing `storage` permission covers it). See ADR-0006.
+- Added a sync toggle (theme-styled switch) + a small status line to the sidebar header. The opt-in flag persists in `chrome.storage.local` under `nlm_sync_enabled` (default OFF, so existing behavior is unchanged until a user opts in); an in-memory `syncEnabled` mirror lets synchronous write/onChanged paths consult it without an async round-trip.
+- `writeFoldersToStorage` now always writes local first (offline source of truth), then — only when sync is ON — mirrors the same `nlm_folders` value to `chrome.storage.sync` via `writeFoldersToSync`, wrapped in try/catch + `chrome.runtime.lastError` checks. On a quota/error (`QUOTA_BYTES_PER_ITEM_EXCEEDED`), `handleSyncDegradation` keeps local data, reverts the toggle to OFF, and surfaces a calm "Folder set too large to sync — kept locally" status. Never throws into the page, never loses data.
+- `readFoldersFromStorage` is unchanged (local stays the render source). Remote edits flow IN via a single `chrome.storage.onChanged` listener (area `sync`): on a folders-key change while sync is enabled it writes the value into local, reloads `folderData`, and re-renders (honoring the active search query). A JSON-equality loop guard ignores echoes of our own write; non-sync areas and the disabled state are ignored.
+- Enabling sync migrates the current local folders up to sync (first write through `writeFoldersToSync`); disabling just stops mirroring. Conflict policy is last-write-wins via onChanged; CRDT/merge deferred. Import still routes through `saveFolders` so it propagates to sync when enabled. All existing features (colors/icons, import/export, search) untouched.
+- While rebasing onto the ADR-0008 merge I found a pre-existing botched-merge bug in `renderSidebar` (duplicate `const unorganized` at two lines → `node --check` SyntaxError, present on `origin/main`). Resolved the obvious mis-merge by keeping the canonical ADR-0008 `renderUnorganizedState(unorganized)` path (loading/error/verified-empty states) and dropping the duplicated inline ADR-0005 block, preserving the search filter. Flagged for review.
+- Tested: `node --check` on all JS + manifest JSON parse (pass after the merge fix); headless Chromium load via Playwright (MV3 service worker registers, no page/load errors); a Node unit harness mocking `chrome.storage.local`/`.sync`/`.onChanged`/`runtime.lastError` and replicating the pure logic — 16/16 assertions pass (sync OFF → local only; sync ON → mirrors to sync; simulated quota error degrades to local-only without throwing and surfaces the status; onChanged from `sync` updates local + triggers re-render; loop guard / non-sync area / disabled all ignored). Real multi-device propagation is browser-gated and can't be exercised headlessly.
+- Next: Harden the experimental chat / generate automation against UI changes.
 
 ### 2026-06-26 — Search and filter within folders (ADR-0005)
 - Added a debounced (~180ms) `<input type="search">` with a clear ("×") button to the sidebar header, styled to the dark violet theme in `content.css`.
