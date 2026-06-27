@@ -44,8 +44,8 @@ automations, and experiments.
 
 <div align="center">
 
-<a href="assets/folders-screenshot.jpg">
-  <img src="assets/folders-screenshot.jpg" width="820" alt="The Folderizer sidebar inside NotebookLM: nested, collapsible folders with custom colors and icons, drag-and-drop, a search box, and an Unorganized Notebooks list" />
+<a href="assets/folders-screenshot.png">
+  <img src="assets/folders-screenshot.png" width="820" alt="The Folderizer sidebar inside NotebookLM: nested, collapsible folders with custom colors and icons, drag-and-drop, a search box, and an Unorganized Notebooks list" />
 </a>
 
 <br /><br />
