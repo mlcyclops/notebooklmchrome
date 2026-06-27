@@ -129,6 +129,12 @@ Keep at least one NotebookLM tab open so the extension can service requests.
 | `POST /api/notebooks/:id/chat` | Chat with a notebook. Streams the reply as **SSE** (`text/event-stream`). Body: `{ "prompt": "..." }`. |
 | `POST /api/notebooks/:id/generate-product` | Trigger a generated product (e.g. `study-guide`, `briefing-doc`, `faq`, `timeline`). Body: `{ "format": "..." }`. |
 | `GET /api/graph` | Export the whole library as a knowledge graph. JSON by default; `?format=graphml` returns GraphML (yEd / Gephi / Cytoscape). Built from `folders.json` plus live notebooks when the extension is connected. |
+| `GET /api/folders/:id/podcast/plan` | Dry-run: plan a podcast series for a folder (one `audio-overview` episode per notebook). No extension needed. |
+| `POST /api/folders/:id/podcast` | Generate the podcast series for a folder. Returns `{ plan, results }`; `?dryRun=1` plans only. |
+| `GET /api/folders/:id/study-pack/plan` | Dry-run: plan a study pack (study-guide / briefing-doc / faq / timeline; `?formats=` to choose). |
+| `POST /api/folders/:id/study-pack` | Generate the study pack for a folder. Returns `{ plan, results }`; `?dryRun=1` plans only. |
+| `POST /api/watch` · `POST /api/watch/stop` · `GET /api/watch` | Watch mode: poll for folder changes on an interval (`{ intervalMs, autoGenerate }`); detect-only by default. |
+| `GET /api/watch/plan` | Dry-run: what watch would (re)generate given current state vs the baseline. |
 
 A small CLI helper, **`test-api.js`**, exercises these endpoints:
 
@@ -140,6 +146,9 @@ node test-api.js chat <notebook_id> "Summarize the key points"
 node test-api.js generate <notebook_id> study-guide
 node test-api.js graph                 # knowledge graph as JSON
 node test-api.js graph graphml         # knowledge graph as GraphML
+node test-api.js podcast <folder_id>   # plan a podcast series for a folder
+node test-api.js studypack <folder_id> # plan a study pack for a folder
+node test-api.js watch                 # watch-mode status + pending regen plan
 ```
 
 > ⚠️ **Experimental.** The chat and product-generation endpoints automate NotebookLM's web
@@ -220,12 +229,12 @@ npm start
 - [x] Harden the experimental chat / generate automation against UI changes
 - [x] Export the knowledge graph (folders + notebooks + cross-links) as JSON / GraphML
 - [x] Firefox / Edge packaging
+- [x] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
+- [x] **Research / study packs**: cross-notebook study guides, briefings, faq, and timelines for a folder
+- [x] **Watch mode**: detect folder changes and (optionally) regenerate products automatically
 
 **Next**
 
-- [ ] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
-- [ ] **Research / study packs**: cross-notebook study guides, briefings, flashcards, and timelines, generated on a schedule
-- [ ] **Watch mode**: regenerate products automatically when a folder's sources change
 - [ ] 🧭 **Atlas** (flagship next build): a Research &amp; Podcast Studio app on top of the server (see below)
 
 ## 🧭 Up next: Atlas, a Research &amp; Podcast Studio

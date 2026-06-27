@@ -5,6 +5,7 @@ const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
 const { buildGraph, toJSON, toGraphML } = require('./lib/knowledge-graph');
+const pipeline = require('./lib/automation-pipeline');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -86,6 +87,37 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
+// Shared snapshot helpers (used by the graph + automation endpoints). Folders
+// come from folders.json; notebooks are fetched live from a connected extension,
+// falling back to an empty list when none is connected.
+function getFoldersFromDisk() {
+  return new Promise((resolve) => {
+    fs.readFile(path.join(__dirname, 'folders.json'), 'utf8', (err, data) => {
+      if (err) return resolve([]);
+      try {
+        const parsed = JSON.parse(data);
+        resolve(Array.isArray(parsed.folders) ? parsed.folders : []);
+      } catch (e) { resolve([]); }
+    });
+  });
+}
+async function getNotebooksLive() {
+  try {
+    const resp = await sendRequestToExtension('list_notebooks', {});
+    if (Array.isArray(resp)) return resp;
+    if (resp && Array.isArray(resp.notebooks)) return resp.notebooks;
+    return [];
+  } catch (e) { return []; }
+}
+async function getSnapshot() {
+  const [folders, notebooks] = await Promise.all([getFoldersFromDisk(), getNotebooksLive()]);
+  return { folders, notebooks };
+}
+// Run one generate-product job against the connected extension.
+function runGenerateJob(job) {
+  return sendRequestToExtension('generate_product', { notebookId: job.notebookId, format: job.format });
+}
 
 // REST Endpoints
 app.get('/api/folders', (req, res) => {
@@ -238,6 +270,112 @@ app.get('/api/graph', (req, res) => {
   }).catch((err) => {
     res.status(500).json({ error: err.message });
   });
+});
+
+// ---- Automation: podcast pipeline + study packs (ADR-0013) ----
+// Plan endpoints are pure dry-runs (no extension needed). Execute endpoints drive
+// the experimental generate-product automation and need a connected extension;
+// each job's outcome is captured, never thrown.
+
+app.get('/api/folders/:id/podcast/plan', async (req, res) => {
+  const snapshot = await getSnapshot();
+  res.json(pipeline.planPodcast(req.params.id, snapshot, { format: req.query.format }));
+});
+
+app.post('/api/folders/:id/podcast', async (req, res) => {
+  const snapshot = await getSnapshot();
+  const plan = pipeline.planPodcast(req.params.id, snapshot, { format: (req.body && req.body.format) });
+  if (req.query.dryRun) return res.json({ plan, results: null, dryRun: true });
+  const results = await pipeline.runPlan(plan.episodes, runGenerateJob, { concurrency: 1, retries: 1 });
+  res.json({ plan, results });
+});
+
+app.get('/api/folders/:id/study-pack/plan', async (req, res) => {
+  const snapshot = await getSnapshot();
+  const formats = req.query.formats ? String(req.query.formats).split(',') : undefined;
+  res.json(pipeline.planStudyPack(req.params.id, snapshot, { formats }));
+});
+
+app.post('/api/folders/:id/study-pack', async (req, res) => {
+  const snapshot = await getSnapshot();
+  const formats = (req.body && Array.isArray(req.body.formats)) ? req.body.formats : undefined;
+  const plan = pipeline.planStudyPack(req.params.id, snapshot, { formats });
+  if (req.query.dryRun) return res.json({ plan, results: null, dryRun: true });
+  const results = await pipeline.runPlan(plan.jobs, runGenerateJob, { concurrency: 1, retries: 1 });
+  res.json({ plan, results });
+});
+
+// ---- Watch mode (ADR-0013) ----
+// Polls the snapshot on an interval; when a folder gains notebooks it computes a
+// regen plan. With autoGenerate on it executes that plan (best-effort), otherwise
+// it just records the pending changes for GET /api/watch/plan to surface.
+const watchState = {
+  active: false,
+  intervalMs: 60000,
+  autoGenerate: false,
+  timer: null,
+  baseline: null,        // snapshot at last check
+  lastCheckedAt: null,
+  lastChanges: [],
+  generating: false
+};
+
+async function watchTick() {
+  if (watchState.generating) return; // don't overlap a long generation run
+  const current = await getSnapshot();
+  const changes = pipeline.diffForWatch(watchState.baseline || { folders: [] }, current);
+  watchState.lastCheckedAt = new Date().toISOString();
+  watchState.baseline = current;
+  if (changes.length === 0) return;
+  watchState.lastChanges = changes;
+  console.log(`Watch: ${changes.length} folder change(s) detected.`);
+  if (watchState.autoGenerate) {
+    const jobs = pipeline.planRegen(changes, current, {});
+    watchState.generating = true;
+    try {
+      await pipeline.runPlan(jobs, runGenerateJob, { concurrency: 1, retries: 1 });
+    } finally {
+      watchState.generating = false;
+    }
+  }
+}
+
+app.post('/api/watch', async (req, res) => {
+  const intervalMs = Math.max(5000, Number(req.body && req.body.intervalMs) || 60000);
+  watchState.intervalMs = intervalMs;
+  watchState.autoGenerate = !!(req.body && req.body.autoGenerate);
+  watchState.baseline = await getSnapshot(); // baseline = now, so only future changes fire
+  watchState.lastChanges = [];
+  if (watchState.timer) clearInterval(watchState.timer);
+  watchState.timer = setInterval(() => { watchTick().catch(() => {}); }, intervalMs);
+  watchState.active = true;
+  res.json({ active: true, intervalMs, autoGenerate: watchState.autoGenerate });
+});
+
+app.post('/api/watch/stop', (req, res) => {
+  if (watchState.timer) clearInterval(watchState.timer);
+  watchState.timer = null;
+  watchState.active = false;
+  res.json({ active: false });
+});
+
+app.get('/api/watch', (req, res) => {
+  res.json({
+    active: watchState.active,
+    intervalMs: watchState.intervalMs,
+    autoGenerate: watchState.autoGenerate,
+    lastCheckedAt: watchState.lastCheckedAt,
+    pendingChanges: watchState.lastChanges
+  });
+});
+
+// Dry-run: what would watch regenerate right now, given the current state vs the
+// baseline captured when watch started (or an empty baseline if not started)?
+app.get('/api/watch/plan', async (req, res) => {
+  const current = await getSnapshot();
+  const changes = pipeline.diffForWatch(watchState.baseline || { folders: [] }, current);
+  const jobs = pipeline.planRegen(changes, current, {});
+  res.json({ changes, jobs });
 });
 
 // Fallback status check endpoint
