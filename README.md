@@ -89,6 +89,13 @@ No build step. No server. Just load the extension folder:
 
 That is it. Your folders are stored locally in your browser and persist automatically.
 
+### Other browsers (Edge &amp; Firefox)
+
+Run `npm run package` to build per-browser bundles into `dist/`:
+
+- **Edge** is Chromium-based, so load `dist/edge/` (or `dist/chrome/`) via `edge://extensions` → **Load unpacked**. The `.zip` is ready for the Edge Add-ons store.
+- **Firefox** uses a Gecko-adapted manifest in `dist/firefox/`. Load it via `about:debugging` → **This Firefox** → **Load Temporary Add-on**, or submit `dist/firefox.zip` to AMO.
+
 ## 🧰 Optional: Companion Server (power users)
 
 > ⚙️ **Advanced / optional.** You do **not** need this for folders. Skip it unless you want
@@ -198,6 +205,8 @@ npm start
 - Server code is `server.js`; the API smoke-test client is `test-api.js`.
 - Brand assets and figures live in `assets/`. Regenerate the framed hero image with
   `node tools/build-hero.js` after replacing `assets/folders-screenshot.png`.
+- `npm run check` syntax-checks the JS; `npm test` runs the unit + integration
+  harnesses; `npm run package` builds the Chrome / Edge / Firefox bundles into `dist/`.
 
 ## 🗺️ Roadmap
 
@@ -210,10 +219,10 @@ npm start
 - [x] Premium UI/UX redesign with trustworthy loading / empty / error states
 - [x] Harden the experimental chat / generate automation against UI changes
 - [x] Export the knowledge graph (folders + notebooks + cross-links) as JSON / GraphML
+- [x] Firefox / Edge packaging
 
 **Next**
 
-- [ ] Firefox / Edge packaging
 - [ ] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
 - [ ] **Research / study packs**: cross-notebook study guides, briefings, flashcards, and timelines, generated on a schedule
 - [ ] **Watch mode**: regenerate products automatically when a folder's sources change
