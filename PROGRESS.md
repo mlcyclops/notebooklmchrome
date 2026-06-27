@@ -37,6 +37,11 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Fix: list_folders returned empty (storage shape); live-confirmed notebooks
+- After v1.0.2, live probe of the user's running desktop server (version 1.0.2, connectedClients 1) showed `/api/notebooks` working (real 175-notebook list) but `/api/folders` returning `{folders:[]}` despite the sidebar clearly having 7 folders.
+- Root cause: the `list_folders` content-script handler did `Array.isArray(folders)` on the stored value, but storage holds the **object** shape `{ folders: [...] }`, so it always fell through to `[]`. Added `foldersForRelay(stored)` (unwraps `{folders}` / tolerates a bare array / `[]` when empty) and used it in the handler.
+- Tested: `foldersForRelay` cases added to the content.js vm harness (automation suite 13/13); full suite green. Bumped to 1.0.3. Next: user reloads the fixed extension, re-probe `/api/folders` to confirm folders appear, then release v1.0.3.
+
 ### 2026-06-27 — Atlas UI polish + custom Help popup (ADR-0020)
 - Added a custom in-app Help/About popup (soft 22px-rounded modal, blurred overlay, open via a topbar "?" button, close via X / overlay click / Esc). It explains how to use the app in 3 steps + tips, and shows the support email (nicholas.chadwick.ctr@gmail.com), a "View on GitHub" link (github.com/mlcyclops/notebooklmchrome), and the current version (from `/status`, now exposing `version`).
 - Frame polish: themed scrollbars, topbar accent seam, refined empty/connect states. Bumped version to 1.0.2.

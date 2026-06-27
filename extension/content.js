@@ -238,11 +238,11 @@ function init() {
       // Expose the user's real folder structure (chrome.storage.local) to the
       // companion server so Atlas shows the folders that actually exist, instead
       // of the server-side folders.json. Reply via the same sendMessage channel.
-      readFoldersFromStorage().then(folders => {
+      readFoldersFromStorage().then(stored => {
         chrome.runtime.sendMessage({
           id: message.id,
           type: 'response',
-          data: { folders: Array.isArray(folders) ? folders : [] }
+          data: { folders: foldersForRelay(stored) }
         });
       }).catch(err => {
         chrome.runtime.sendMessage({
@@ -451,6 +451,15 @@ function normalizeFolderData(data) {
     icon: sanitizeFolderIcon(f.icon)
   }));
   return { folders };
+}
+
+// Extract the folder array for the companion-server relay (list_folders). Storage
+// holds the object shape { folders: [...] }, but tolerate a bare array too.
+// Returns [] when there are no folders (never injects defaults).
+function foldersForRelay(stored) {
+  if (stored && Array.isArray(stored.folders)) return stored.folders;
+  if (Array.isArray(stored)) return stored;
+  return [];
 }
 
 // chrome.storage.local is the source of truth for folders. The companion
