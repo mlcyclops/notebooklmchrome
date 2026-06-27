@@ -16,6 +16,22 @@ No build step. No account. No server required. Just *Load unpacked* and go.
 
 ---
 
+## ⚡ Get started
+
+Two layers, pick what you need. The **folder organizer** is just the browser extension
+(no Node, no server). The **studio + automation** features (knowledge-graph export,
+podcast pipeline, study packs, watch mode, and the Atlas app) run on a tiny local
+companion server, now also packaged as a one-click **desktop app**.
+
+| You want... | Do this |
+| --- | --- |
+| 📁 **Folders in NotebookLM** | Load the extension. 30 seconds, no Node. See [Install in Chrome](#-install-in-chrome-the-easy-way). |
+| 🧭 **Atlas Studio + automation, the easy way** (Windows) | Double-click **`run.bat`** and pick from the menu, or install the **[Atlas Studio desktop app](#-desktop-app-atlas-studio)**. One double-click, no terminal. |
+| 💻 **Prefer the terminal** | `npm install && npm start`, then open **http://localhost:3000/atlas**. |
+
+> You still load the browser extension to organize notebooks and to give the studio
+> live notebook data. The desktop app / server provides the studio and automation.
+
 ## Why?
 
 NotebookLM is fantastic for thinking with your sources, but once you have more than a
@@ -96,6 +112,29 @@ Run `npm run package` to build per-browser bundles into `dist/`:
 - **Edge** is Chromium-based, so load `dist/edge/` (or `dist/chrome/`) via `edge://extensions` → **Load unpacked**. The `.zip` is ready for the Edge Add-ons store.
 - **Firefox** uses a Gecko-adapted manifest in `dist/firefox/`. Load it via `about:debugging` → **This Firefox** → **Load Temporary Add-on**, or submit `dist/firefox.zip` to AMO.
 
+## 🖥️ Desktop app (Atlas Studio)
+
+**Atlas Studio** bundles the companion server and the [Atlas studio UI](#-atlas-a-research--podcast-studio)
+into a native desktop app, so you get the studio, knowledge-graph export, and the
+podcast / study automation with **one double-click**. No Node, npm, or terminal.
+
+**Get it:**
+
+- **Download an installer** from the project's Releases: Windows `.exe`, macOS `.dmg`,
+  or Linux `.AppImage`.
+- **Windows, the friendly way:** double-click **`build-desktop.bat`** (or `run.bat` and
+  choose option 5) to produce `dist-desktop\Atlas Studio Setup *.exe`.
+- **Any platform:** `npm install`, then `npm run dist:win` / `dist:mac` / `dist`. Use
+  `npm run desktop` to run the app without packaging.
+
+Installers build on each OS via CI (`.github/workflows/desktop-build.yml`); the macOS
+`.dmg` must be built on macOS. Artifacts are unsigned, so the first launch may show an
+OS warning (choose "More info" / "Open anyway").
+
+> The desktop app delivers the **server + Atlas**. The browser extension still installs
+> separately (it has to live in your browser) and supplies the live notebook data and
+> generation.
+
 ## 🧰 Optional: Companion Server (power users)
 
 > ⚙️ **Advanced / optional.** You do **not** need this for folders. Skip it unless you want
@@ -112,9 +151,10 @@ npm install
 npm start          # starts the server on http://localhost:3000
 ```
 
-On **Windows**, you can instead double-click **`run.bat`**, which will detect (or download a
-portable) Node.js, install dependencies, start the server, and launch Chrome with the
-extension pre-loaded.
+On **Windows**, double-click **`run.bat`** for a guided menu: launch Atlas Studio, start
+the server and open Atlas, load the extension into Chrome, build the browser packages or
+the desktop installer, or run the tests. It auto-detects (or downloads a portable) copy of
+Node.js and installs dependencies for you.
 
 Keep at least one NotebookLM tab open so the extension can service requests.
 
@@ -193,7 +233,11 @@ podcasts.
   folder sidebar on NotebookLM and persist to `chrome.storage.local`. `background.js` is the
   service worker that bridges to the optional server.
 - **Server (`server.js`)**: Express REST + an attached WebSocket server. It never talks to
-  Google directly; it relays requests to the extension and streams results back.
+  Google directly; it relays requests to the extension and streams results back. It also
+  serves the Atlas studio at `/atlas` and exposes `start(port)` so it can be embedded.
+- **Desktop (`desktop/`)**: an Electron shell that boots `server.js` in-process and opens
+  Atlas in a native window. Packaged into Windows / macOS / Linux installers with
+  electron-builder (`npm run dist`).
 
 ## 🛠️ Development
 
@@ -215,7 +259,11 @@ npm start
 - Brand assets and figures live in `assets/`. Regenerate the framed hero image with
   `node tools/build-hero.js` after replacing `assets/folders-screenshot.png`.
 - `npm run check` syntax-checks the JS; `npm test` runs the unit + integration
-  harnesses; `npm run package` builds the Chrome / Edge / Firefox bundles into `dist/`.
+  harnesses (9 suites); `npm run package` builds the Chrome / Edge / Firefox bundles into `dist/`.
+- `npm run desktop` runs the Electron app; `npm run dist:win` / `dist:mac` / `dist` build
+  the desktop installers into `dist-desktop/` (`node tools/build-icon.js` regenerates the app icon).
+- Pure libraries live in `lib/` (`knowledge-graph.js`, `automation-pipeline.js`); the Atlas
+  UI is in `atlas/` (build-free, with a shared view-model in `atlas/atlas-view.js`).
 
 ## 🗺️ Roadmap
 
@@ -233,6 +281,8 @@ npm start
 - [x] **Research / study packs**: cross-notebook study guides, briefings, faq, and timelines for a folder
 - [x] **Watch mode**: detect folder changes and (optionally) regenerate products automatically
 - [x] 🧭 **Atlas**: a Research &amp; Podcast Studio app on top of the server (see below)
+- [x] One-click **desktop app** (Atlas Studio) with Windows / macOS / Linux installer pipelines
+- [x] Guided **`.bat` launchers** with menus and ASCII art
 
 **Next (future ideas)**
 
@@ -252,7 +302,8 @@ notebook lands in a folder, Atlas can regenerate automatically.
 It is entirely powered by the API above. No new access to Google is required; Atlas only talks
 to `localhost:3000`.
 
-**Launch it:** start the companion server (`npm start`) and open
+**Launch it:** easiest is the **[desktop app](#-desktop-app-atlas-studio)** (one double-click).
+Or start the companion server (`npm start`, or `run.bat`) and open
 **[http://localhost:3000/atlas](http://localhost:3000/atlas)**. Keep a NotebookLM tab open so
 generation can run (planning works without it).
 
