@@ -4,11 +4,11 @@
 
 ### ⬇️ Download Atlas Studio (desktop app)
 
-[![Download for Windows](https://img.shields.io/badge/Windows-Download%20.exe-4285F4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-Setup-1.0.1.exe)
-[![Download for macOS](https://img.shields.io/badge/macOS-Download%20.dmg-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1-arm64.dmg)
-[![Download for Linux](https://img.shields.io/badge/Linux-AppImage-7c3aed?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1.AppImage)
+[![Download for Windows](https://img.shields.io/badge/Windows-Download%20.exe-4285F4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-Setup-1.0.2.exe)
+[![Download for macOS](https://img.shields.io/badge/macOS-Download%20.dmg-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2-arm64.dmg)
+[![Download for Linux](https://img.shields.io/badge/Linux-AppImage-7c3aed?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2.AppImage)
 
-<sub><b>v1.0.1</b> · the companion server + Atlas studio in one double-click · macOS is Apple Silicon · builds are unsigned (first launch shows an OS warning). All downloads on the <a href="https://github.com/mlcyclops/notebooklmchrome/releases">Releases page</a>.</sub>
+<sub><b>v1.0.2</b> · the companion server + Atlas studio in one double-click · macOS is Apple Silicon · builds are unsigned (first launch shows an OS warning). All downloads on the <a href="https://github.com/mlcyclops/notebooklmchrome/releases">Releases page</a>.</sub>
 
 <sub>Just want folders in NotebookLM? <a href="#-install-in-chrome-the-easy-way">Install the browser extension</a> instead (no download, no server).</sub>
 
@@ -40,7 +40,7 @@ companion server, now also packaged as a one-click **desktop app**.
 | You want... | Do this |
 | --- | --- |
 | 📁 **Folders in NotebookLM** | Load the extension. 30 seconds, no Node. See [Install in Chrome](#-install-in-chrome-the-easy-way). |
-| 🧭 **Atlas Studio + automation**<br>(any OS, one double-click) | **Download the desktop app** (companion server + Atlas, bundled), then run it. No Node, npm, or terminal:<br>[⬇ Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-Setup-1.0.1.exe) · [⬇ macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1-arm64.dmg) (Apple Silicon) · [⬇ Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1.AppImage)<br>On Windows you can instead double-click **`run.bat`** for a guided menu. Want to build it yourself? See the [desktop app section](#-desktop-app-atlas-studio). |
+| 🧭 **Atlas Studio + automation**<br>(any OS, one double-click) | **Download the desktop app** (companion server + Atlas, bundled), then run it. No Node, npm, or terminal:<br>[⬇ Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-Setup-1.0.2.exe) · [⬇ macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2-arm64.dmg) (Apple Silicon) · [⬇ Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2.AppImage)<br>On Windows you can instead double-click **`run.bat`** for a guided menu. Want to build it yourself? See the [desktop app section](#-desktop-app-atlas-studio). |
 | 💻 **Prefer the terminal** | `npm install && npm start`, then open **http://localhost:3000/atlas**. |
 
 > You still load the browser extension to organize notebooks and to give the studio
@@ -141,9 +141,9 @@ podcast / study automation with **one double-click**. No Node, npm, or terminal.
 **Get it:**
 
 - **Download an installer** from the [latest release](https://github.com/mlcyclops/notebooklmchrome/releases/latest):
-  [Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-Setup-1.0.1.exe),
-  [macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1-arm64.dmg) (Apple Silicon),
-  or [Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.1/Atlas-Studio-1.0.1.AppImage).
+  [Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-Setup-1.0.2.exe),
+  [macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2-arm64.dmg) (Apple Silicon),
+  or [Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.2/Atlas-Studio-1.0.2.AppImage).
 - **Windows, the friendly way:** double-click **`build-desktop.bat`** (or `run.bat` and
   choose option 5) to produce `dist-desktop\Atlas Studio Setup *.exe`.
 - **Any platform:** `npm install`, then `npm run dist:win` / `dist:mac` / `dist`. Use
