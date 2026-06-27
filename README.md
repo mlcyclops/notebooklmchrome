@@ -2,6 +2,20 @@
 
 <div align="center">
 
+### ⬇️ Download Atlas Studio (desktop app)
+
+[![Download for Windows](https://img.shields.io/badge/Windows-Download%20.exe-4285F4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-Setup-1.0.0.exe)
+[![Download for macOS](https://img.shields.io/badge/macOS-Download%20.dmg-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0-arm64.dmg)
+[![Download for Linux](https://img.shields.io/badge/Linux-AppImage-7c3aed?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0.AppImage)
+
+<sub><b>v1.0.0</b> · the companion server + Atlas studio in one double-click · macOS is Apple Silicon · builds are unsigned (first launch shows an OS warning). All downloads on the <a href="https://github.com/mlcyclops/notebooklmchrome/releases">Releases page</a>.</sub>
+
+<sub>Just want folders in NotebookLM? <a href="#-install-in-chrome-the-easy-way">Install the browser extension</a> instead (no download, no server).</sub>
+
+</div>
+
+<div align="center">
+
 # NotebookLM Folderizer &amp; Connector
 
 **Bring real folders, nesting, and drag-and-drop to [Google NotebookLM](https://notebooklm.google.com).**
@@ -120,8 +134,10 @@ podcast / study automation with **one double-click**. No Node, npm, or terminal.
 
 **Get it:**
 
-- **Download an installer** from the project's Releases: Windows `.exe`, macOS `.dmg`,
-  or Linux `.AppImage`.
+- **Download an installer** from the [latest release](https://github.com/mlcyclops/notebooklmchrome/releases/latest):
+  [Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-Setup-1.0.0.exe),
+  [macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0-arm64.dmg) (Apple Silicon),
+  or [Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0.AppImage).
 - **Windows, the friendly way:** double-click **`build-desktop.bat`** (or `run.bat` and
   choose option 5) to produce `dist-desktop\Atlas Studio Setup *.exe`.
 - **Any platform:** `npm install`, then `npm run dist:win` / `dist:mac` / `dist`. Use
