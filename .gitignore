@@ -3,3 +3,4 @@ bin/
 folders.json
 .system_generated/
 *.log
+dist/
