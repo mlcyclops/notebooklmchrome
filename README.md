@@ -119,6 +119,12 @@ No build step. No server. Just load the extension folder:
 
 That is it. Your folders are stored locally in your browser and persist automatically.
 
+> **One-click install (Chrome Web Store) is on the way.** The store package is
+> prepared: the extension ships proper icons and `npm run package` produces a
+> store-ready `dist/chrome.zip`. Listing copy, a privacy policy, and a step-by-step
+> publishing checklist live in [`store/`](store/SUBMISSION.md). Once published, users
+> get a single **Add to Chrome** button instead of "Load unpacked".
+
 ### Other browsers (Edge &amp; Firefox)
 
 Run `npm run package` to build per-browser bundles into `dist/`:

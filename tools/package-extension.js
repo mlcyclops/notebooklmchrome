@@ -116,8 +116,21 @@ function zipStore(files) {
 // ---- Build -------------------------------------------------------------
 function rmrf(p) { if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }); }
 
+// Recursively list files under `dir` as posix-style relative paths (so the zip
+// preserves subfolders like icons/).
+function walk(dir, base) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir)) {
+    const abs = path.join(dir, entry);
+    const rel = base ? base + '/' + entry : entry;
+    if (fs.statSync(abs).isDirectory()) out.push(...walk(abs, rel));
+    else out.push(rel);
+  }
+  return out;
+}
+
 function build() {
-  const srcFiles = fs.readdirSync(SRC).filter(f => fs.statSync(path.join(SRC, f)).isFile());
+  const srcFiles = walk(SRC, '');
   const baseManifest = JSON.parse(fs.readFileSync(path.join(SRC, 'manifest.json'), 'utf8'));
 
   rmrf(DIST);
@@ -139,7 +152,9 @@ function build() {
       } else {
         data = fs.readFileSync(path.join(SRC, name));
       }
-      fs.writeFileSync(path.join(outDir, name), data);
+      const dest = path.join(outDir, name);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, data);
       zipFiles.push({ name, data });
     }
 

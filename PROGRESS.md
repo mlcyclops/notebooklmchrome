@@ -37,6 +37,10 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Chrome Web Store package (ADR-0019)
+- Prepped one-click install. Added extension icons (`tools/build-extension-icons.js` -> `extension/icons/icon{16,32,48,128}.png`) and wired `manifest.json` `icons`. Made `tools/package-extension.js` recurse into subfolders so `icons/` ships inside `dist/{chrome,edge,firefox}.zip` (8 files now). Added `store/` docs: `store-listing.md`, `privacy-policy.md`, `SUBMISSION.md` (Chrome/Edge/Firefox checklist; trademark-safe "Folderizer for NotebookLM" name; support email + privacy URL). README notes the store package + one-click coming.
+- Tested: packaging test updated to count files dynamically + assert icons bundled + CRC round-trip (15/15); full suite green.
+
 ### 2026-06-27 — Fix relay async-ack race; live-verified end to end (ADR-0018)
 - Live test with the user's real browser surfaced that server-driven `/api/notebooks` and live folders always returned "NotebookLM tab is loading" even with the extension connected. Root cause: `background.js` treated the `tabs.sendMessage` callback's `lastError` ("message port closed before a response was received", the normal result of the content script replying asynchronously) as fatal and sent an error that resolved the pending request before the real reply arrived.
 - Fix: ignore the "message port closed" ack; only report "tab is loading" when `lastError` indicates no receiver ("Receiving end does not exist"). Also prefer a `status === 'complete'` NotebookLM tab.
