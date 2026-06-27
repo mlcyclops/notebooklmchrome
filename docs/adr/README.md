@@ -33,3 +33,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0012 | [Cross-browser packaging (Chrome, Edge, Firefox)](0012-cross-browser-packaging.md) | Accepted | 2026-06-26 |
 | 0013 | [Automation pipelines (podcast, study packs) and watch mode](0013-automation-podcast-study-watch.md) | Accepted | 2026-06-26 |
 | 0014 | [Atlas, a Research & Podcast Studio on the companion server](0014-atlas-research-podcast-studio.md) | Accepted | 2026-06-26 |
+| 0015 | [Atlas Studio desktop app and one-click installers](0015-atlas-desktop-app-and-installers.md) | Accepted | 2026-06-27 |

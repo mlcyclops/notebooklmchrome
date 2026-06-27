@@ -1,18 +1,72 @@
 {
   "name": "notebooklm-companion-server",
   "version": "1.0.0",
-  "description": "Local companion server for NotebookLM Chrome Extension",
-  "main": "server.js",
+  "description": "Companion server, knowledge-graph + automation API, and Atlas desktop studio for the NotebookLM Folderizer extension",
+  "main": "desktop/main.js",
+  "author": "NotebookLM Folderizer contributors",
+  "license": "MIT",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check test-api.js && node --check extension/content.js && node --check extension/background.js",
-    "package": "node tools/package-extension.js",
     "atlas": "node server.js",
-    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js"
+    "desktop": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "check": "node --check server.js && node --check test-api.js && node --check extension/content.js && node --check extension/background.js && node --check desktop/main.js",
+    "package": "node tools/package-extension.js",
+    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js && node tests/desktop.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.mlcyclops.atlasstudio",
+    "productName": "Atlas Studio",
+    "directories": {
+      "output": "dist-desktop",
+      "buildResources": "build"
+    },
+    "files": [
+      "desktop/**/*",
+      "server.js",
+      "lib/**/*",
+      "atlas/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "desktop/main.js"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Atlas Studio"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Office"
+    }
   }
 }

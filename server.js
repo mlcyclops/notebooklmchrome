@@ -391,9 +391,26 @@ app.get('/status', (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(`  NotebookLM Companion Server running on port ${PORT}`);
-  console.log(`  WebSocket Server attached to Express Server`);
-  console.log(`====================================================`);
-});
+// Start the HTTP + WebSocket server. Exported so the Electron desktop shell
+// (desktop/main.js) can boot it in-process; still auto-starts when run via
+// `node server.js`.
+function start(port) {
+  const p = port || PORT;
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(p, () => {
+      console.log(`====================================================`);
+      console.log(`  NotebookLM Companion Server running on port ${p}`);
+      console.log(`  WebSocket Server attached to Express Server`);
+      console.log(`  Atlas studio: http://localhost:${p}/atlas`);
+      console.log(`====================================================`);
+      resolve(server);
+    });
+  });
+}
+
+if (require.main === module) {
+  start(PORT);
+}
+
+module.exports = { app, server, start };

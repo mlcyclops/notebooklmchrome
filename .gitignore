@@ -4,3 +4,4 @@ folders.json
 .system_generated/
 *.log
 dist/
+dist-desktop/
