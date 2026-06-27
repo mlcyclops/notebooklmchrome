@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atlas - Research & Podcast Studio</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <g stroke="#7c3aed" stroke-width="2"><line x1="16" y1="20" x2="34" y2="11"/><line x1="16" y1="20" x2="36" y2="30"/></g>
+        <circle cx="16" cy="20" r="6" fill="#a78bfa"/><circle cx="34" cy="11" r="4" fill="#c4b5fd"/><circle cx="36" cy="30" r="4" fill="#f472b6"/>
+      </svg>
+      <b>Atlas</b><span>Research &amp; Podcast Studio</span>
+    </div>
+    <nav class="tabs">
+      <div class="tab active">Podcasts</div>
+      <div class="tab" title="Coming soon">Graph</div>
+      <div class="tab" title="Coming soon">Study</div>
+    </nav>
+    <div id="status" class="status-pill off"><span class="dot"></span><span id="status-text">Connecting...</span></div>
+  </header>
+
+  <main class="app">
+    <!-- Library rail -->
+    <aside class="rail">
+      <div class="eyebrow">Library</div>
+      <div id="folders"><div class="empty-state">Loading folders...</div></div>
+      <div class="eyebrow" style="margin-top:22px">Knowledge graph</div>
+      <div class="graph-wrap">
+        <svg id="graph" viewBox="0 0 240 190" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="graph-legend">
+          <span><i style="background:#7c3aed"></i>Folder</span>
+          <span><i style="background:#c4b5fd;border-radius:50%"></i>Notebook</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: Podcast Studio -->
+    <section class="center">
+      <h1>Podcast Studio</h1>
+      <p class="sub">Turn any folder into a narrated, multi-episode series, built from your notebooks.</p>
+
+      <div class="card">
+        <h2>Build a series</h2>
+        <div class="row">
+          <select id="folder-select"><option value="">Select a folder...</option></select>
+          <button id="plan-btn" class="btn ghost" disabled>Plan</button>
+          <button id="generate-btn" class="btn" disabled>Generate episodes</button>
+        </div>
+        <div id="episode-list"><div class="empty-state">Pick a folder to plan a podcast series.</div></div>
+      </div>
+    </section>
+
+    <!-- Right: Study Pack -->
+    <aside class="side">
+      <h2 style="margin-top:0">Study Pack</h2>
+      <p class="sub" style="font-size:14px">Generated from the same folder.</p>
+      <div class="stat-row">
+        <div class="stat"><div class="n" id="st-guides">0</div><div class="l">study guides</div></div>
+        <div class="stat"><div class="n" id="st-faq">0</div><div class="l">faq / timeline</div></div>
+      </div>
+      <div class="chips" id="study-chips"><span class="chip muted">No folder selected</span></div>
+      <button id="studypack-btn" class="btn" style="width:100%" disabled>Generate study pack</button>
+
+      <div class="toggle">
+        <div>
+          <div style="font-weight:600">Watch mode</div>
+          <div class="note" style="margin:2px 0 0">Regenerate when a folder changes</div>
+        </div>
+        <div id="watch-switch" class="switch" role="switch" aria-checked="false" tabindex="0"></div>
+      </div>
+      <p class="note">Atlas talks only to <code>localhost:3000</code>. Generation drives NotebookLM and is best-effort.</p>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="atlas-view.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

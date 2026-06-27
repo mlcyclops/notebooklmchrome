@@ -32,3 +32,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0011 | [Export the library as a knowledge graph (JSON / GraphML)](0011-knowledge-graph-export.md) | Accepted | 2026-06-26 |
 | 0012 | [Cross-browser packaging (Chrome, Edge, Firefox)](0012-cross-browser-packaging.md) | Accepted | 2026-06-26 |
 | 0013 | [Automation pipelines (podcast, study packs) and watch mode](0013-automation-podcast-study-watch.md) | Accepted | 2026-06-26 |
+| 0014 | [Atlas, a Research & Podcast Studio on the companion server](0014-atlas-research-podcast-studio.md) | Accepted | 2026-06-26 |

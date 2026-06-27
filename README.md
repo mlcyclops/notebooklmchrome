@@ -232,29 +232,37 @@ npm start
 - [x] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
 - [x] **Research / study packs**: cross-notebook study guides, briefings, faq, and timelines for a folder
 - [x] **Watch mode**: detect folder changes and (optionally) regenerate products automatically
+- [x] 🧭 **Atlas**: a Research &amp; Podcast Studio app on top of the server (see below)
 
-**Next**
+**Next (future ideas)**
 
-- [ ] 🧭 **Atlas** (flagship next build): a Research &amp; Podcast Studio app on top of the server (see below)
+- [ ] Full Graph + Study tabs in Atlas (interactive graph, audio playback, scheduling UI)
+- [ ] Persisted job queue / scheduler for watch mode (survives restart)
+- [ ] Push-based change detection from the extension (replace polling)
+- [ ] Knowledge-graph cross-links from shared sources (beyond shared topics/tags)
 
-## 🧭 Up next: Atlas, a Research &amp; Podcast Studio
+## 🧭 Atlas: a Research &amp; Podcast Studio
 
-**Atlas** is the next application we plan to build on top of the companion server. It treats
+**Atlas** is a Research &amp; Podcast Studio that ships with the companion server. It treats
 your folderized notebooks as a knowledge graph and turns them into finished material:
-pick a folder and Atlas drafts a narrated, multi-episode **podcast series**, plus a matching
-**study pack** (study guide, flashcards, quiz, briefing, timeline). Automations keep it fresh:
-when a notebook lands in a folder, Atlas drafts the next episode and rebuilds the study pack.
+pick a folder and Atlas plans a narrated, multi-episode **podcast series**, plus a matching
+**study pack** (study guide, briefing, faq, timeline). **Watch mode** keeps it fresh: when a
+notebook lands in a folder, Atlas can regenerate automatically.
 
 It is entirely powered by the API above. No new access to Google is required; Atlas only talks
 to `localhost:3000`.
 
+**Launch it:** start the companion server (`npm start`) and open
+**[http://localhost:3000/atlas](http://localhost:3000/atlas)**. Keep a NotebookLM tab open so
+generation can run (planning works without it).
+
 <div align="center">
 
-<img src="assets/app-atlas-concept.svg" width="960" alt="Concept mockup of Atlas, a Research and Podcast Studio app: a left library and knowledge-graph rail, a center Podcast Studio with a featured episode generated from a folder and an episode queue showing Ready / Generating / Queued states, and a right Study Pack panel with a study guide, flashcards, and a generate button, all connected to localhost:3000." />
+<img src="assets/app-atlas-concept.svg" width="960" alt="Atlas, a Research and Podcast Studio app: a left library and knowledge-graph rail, a center Podcast Studio with a folder selector and an episode list, and a right Study Pack panel with format chips and a generate button, all connected to localhost:3000." />
 
 <br />
 
-<sub><b>Concept.</b> Not yet built. Tracked as the flagship next item on the roadmap above.</sub>
+<sub>The design concept above; the shipping app lives at <code>/atlas</code> and is wired to the live API.</sub>
 
 </div>
 

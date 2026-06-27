@@ -18,11 +18,15 @@
 - ✅ Knowledge-graph export (ADR-0011): pure `lib/knowledge-graph.js` builds `{nodes,edges}` from `{folders,notebooks}` (root + folder + notebook nodes; subfolder/contains/unorganized edges; shared notebooks connect folders; optional shared-topic cross-links) and serializes to a versioned JSON envelope + injection-safe GraphML. Server `GET /api/graph[?format=graphml]` (folders.json + live notebooks when connected, folders-only otherwise) and `test-api.js graph` CLI. `npm test` runs all harnesses. Tested: lib 23/23, endpoint integration 8/8.
 - ✅ Cross-browser packaging (ADR-0012): `tools/package-extension.js` builds `dist/{chrome,edge,firefox}/` + real `.zip`s from the single `extension/` source. Chrome/Edge get the manifest verbatim; Firefox gets an auto-adapted manifest (`background.scripts` + `browser_specific_settings.gecko`). Dependency-free store-only ZIP writer (CRC32, deterministic). `npm run package`; `dist/` git-ignored. Tested: packaging 14/14 (incl. parsing the produced zip back + CRC round-trip).
 - ✅ Automation pipelines + watch mode (ADR-0013): pure `lib/automation-pipeline.js` (`planPodcast` one `audio-overview` episode/notebook; `planStudyPack` notebooks x formats; `runPlan` dependency-injected executor w/ retries + concurrency, never throws; `diffForWatch`/`planRegen`). Server: dry-run plan GETs (no extension), execute POSTs (`?dryRun=1`), and watch mode (`POST/GET /api/watch`, `/api/watch/stop`, `/api/watch/plan`; opt-in `autoGenerate`, detect-only default). CLI: `podcast`/`studypack`/`watch`. Tested: pipeline 19/19, endpoint integration 13/13 (incl. graceful per-job failure when extension offline). Generation itself stays experimental/best-effort.
+- ✅ Atlas app (ADR-0014): a Research & Podcast Studio served by the companion server at `/atlas`. Static SPA in `atlas/` (build-free) with a shared UMD view-model `atlas/atlas-view.js` (Node + browser). Library rail + concentric knowledge-graph render, Podcast Studio (plan/generate + per-episode status), Study Pack panel, watch toggle. Consumes only existing endpoints; degrades gracefully offline. Tested: atlas-view 12/12, atlas-endpoint 5/5; live-verified in a browser (folders + graph + plan/select flow). **All roadmap "Next" features are now shipped.**
 
 ## Next Up
-- [ ] Confirm the reconciled build visually on the live page (search + accordion + popovers together)
-- [ ] Quiet the `localhost:3000/status` console spam (optional server poll; browser logs ERR_CONNECTION_REFUSED every 5s)
-- [ ] Build **Atlas** (flagship next): Research &amp; Podcast Studio on the companion server (own ADR + increments)
+- All roadmap "Next" features are shipped. Remaining items are browser-gated checks and future ideas:
+- [ ] Confirm the reconciled extension build visually on the live NotebookLM page (search + accordion + popovers together) — browser-gated
+- [ ] Full Graph + Study tabs in Atlas (interactive graph, audio playback, scheduling UI)
+- [ ] Persisted job queue / scheduler for watch mode (survives restart)
+- [ ] Push-based change detection from the extension (replace polling)
+- [ ] Knowledge-graph cross-links from shared sources (beyond shared topics/tags)
 
 ## Blocked / Open Questions
 - None.
@@ -30,6 +34,13 @@
 ---
 
 ## Session Log (append-only, newest first)
+
+### 2026-06-26 — Atlas: Research & Podcast Studio app (ADR-0014) — final Next feature
+- Feature 5 (last) of the roadmap batch. Built **Atlas**, a build-free static SPA in `atlas/` served by the companion server at `/atlas` (`express.static`). It consumes only existing endpoints (`/status`, `/api/folders`, `/api/graph`, podcast/study plan+execute, watch) and introduces no new backend behavior.
+- Shared pure view-model `atlas/atlas-view.js` (UMD: Node `require` + browser `window.AtlasView`): `buildSidebar`, `graphStats`, `episodeRows`, `studyGroups`, `summarizeResults`, `connectionLabel`. The DOM layer (`app.js`) is thin and calls these. UI: library rail + concentric knowledge-graph render, Podcast Studio (folder select -> plan -> generate, per-episode status), Study Pack panel (format chips + counts + generate), watch toggle, connection pill. Graceful empty/offline states + toasts.
+- Tested: `tests/atlas-view.test.js` 12/12 (all transforms incl. nesting/depth, graph stats from envelope or raw graph, study grouping, result summary, connection labels); `tests/atlas-endpoint.test.js` 5/5 (real server serves index.html + atlas-view.js + app.js + style.css with correct content types). Live-verified in a browser via the preview tool: server booted with a sample `folders.json`, `/atlas` rendered 4 folders + a graph; selecting the 3-notebook folder produced 3 planned episodes + 4 study chips + synced controls; zero console errors. (Static screenshot timed out only because the app polls `/status`, so the page never reaches network-idle; DOM assertions confirmed rendering.)
+- `npm test` now runs **8 suites** (104 assertions total): automation 10, knowledge-graph 23, graph-endpoint 8, packaging 14, automation-pipeline 19, automation-endpoint 13, atlas-view 12, atlas-endpoint 5. README (Atlas section now "shipped" + launch steps, roadmap), ADR index, PROGRESS updated.
+- **Done: all five roadmap "Next" features are implemented, tested, merged, and rechecked on `main` (ADR-0010 through ADR-0014).**
 
 ### 2026-06-26 — Automation pipelines (podcast / study packs) + watch mode (ADR-0013)
 - Feature 4 of the roadmap batch. Added `lib/automation-pipeline.js` (pure, dependency-injected): `planPodcast` (one `audio-overview` episode per notebook, ordered), `planStudyPack` (each notebook x formats, default study-guide/briefing-doc/faq/timeline), `runPlan(jobs, runJob, {concurrency, retries})` (executor that never throws; per-job `{ok, attempts, result|error}`), `diffForWatch(prev,curr)` (new/grown folders), `planRegen` (diff -> podcast+study jobs).
