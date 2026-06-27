@@ -264,6 +264,8 @@ npm start
   the desktop installers into `dist-desktop/` (`node tools/build-icon.js` regenerates the app icon).
 - Pure libraries live in `lib/` (`knowledge-graph.js`, `automation-pipeline.js`); the Atlas
   UI is in `atlas/` (build-free, with a shared view-model in `atlas/atlas-view.js`).
+- Decisions are recorded in [`docs/adr/`](docs/adr/README.md); product and go-to-market
+  thinking is in [`docs/business-strategy.md`](docs/business-strategy.md).
 
 ## 🗺️ Roadmap
 

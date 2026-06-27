@@ -37,6 +37,10 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Business strategy report (docs/business-strategy.md)
+- Wrote a candid go-to-market / business strategy: open-core recommendation (free extension as the distribution wedge; monetize Atlas/automation/teams), ICPs (researchers/consultants, students/educators, audio/content teams, internal knowledge-ops/L&D), positioning ("the organization and automation layer for NotebookLM"), pricing sketch, GTM (community-led, "folder to podcast/study" demo), in-company integration scenarios, competitive/moat read, and a risk section led by platform dependency on NotebookLM with concrete mitigations. Linked from the README. Reported highlights to the user.
+- This completes the goal: README reviewed + updated for the newest capabilities; one-click enablement via the Atlas Studio desktop app + verified installer build + CI pipeline; polished `.bat` launchers with ASCII art; README refreshed again; and the business strategy delivered.
+
 ### 2026-06-27 — Thorough README refresh for the new capabilities
 - Added a top-level "Get started" table (folders-only via extension / easy Atlas + automation via run.bat or the desktop app / terminal via npm) so the easiest path to the newest capabilities is the first thing a reader sees.
 - New "Desktop app (Atlas Studio)" section: download installers, build via `build-desktop.bat` or `run.bat` option 5 or `npm run dist:*`, CI pipeline note, unsigned-artifact caveat, and the extension-still-separate note.
