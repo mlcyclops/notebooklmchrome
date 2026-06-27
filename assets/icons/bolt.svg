@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Zero setup">
+  <defs>
+    <linearGradient id="flash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5d0fe"/><stop offset="0.5" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  </defs>
+  <path d="M27 5 L13 27 h8.5 l-2.5 16 16 -24 h-9 z" fill="#c4b5fd" filter="url(#glow)">
+    <animate attributeName="opacity" values="0.15;0.9;0.15" dur="1.7s" repeatCount="indefinite" keyTimes="0;0.5;1"/>
+  </path>
+  <path d="M27 5 L13 27 h8.5 l-2.5 16 16 -24 h-9 z" fill="url(#flash)" stroke="#ede9fe" stroke-width="0.8" stroke-linejoin="round"/>
+</svg>
