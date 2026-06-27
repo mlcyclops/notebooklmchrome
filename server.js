@@ -13,6 +13,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Atlas: the Research & Podcast Studio web app (ADR-0014). Open http://localhost:3000/atlas
+app.use('/atlas', express.static(path.join(__dirname, 'atlas')));
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
