@@ -40,6 +40,20 @@ automations, and experiments.
 > The folder organizer is the headline feature and works **completely standalone**.
 > The companion server is a separate, optional power-user add-on.
 
+## 📸 What it looks like
+
+<div align="center">
+
+<a href="assets/folders-screenshot.png">
+  <img src="assets/folders-screenshot.png" width="820" alt="The Folderizer sidebar inside NotebookLM: nested, collapsible folders with custom colors and icons, drag-and-drop, a search box, and an Unorganized Notebooks list" />
+</a>
+
+<br /><br />
+
+<sub><b>Nested, collapsible folders</b> with custom colors &amp; icons · <b>drag-and-drop</b> · <b>live search</b> · an <b>Unorganized Notebooks</b> list — all inside the NotebookLM UI.</sub>
+
+</div>
+
 ## 🚀 Install in Chrome (the easy way)
 
 No build step. No server. Just load the extension folder:
