@@ -28,3 +28,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0006 | [Sync folders across devices](0006-sync-folders-across-devices.md)                       | Accepted | 2026-06-26 |
 | 0008 | [Premium UI/UX redesign and trustworthy notebook states](0008-premium-ui-ux-and-trustworthy-notebook-states.md) | Accepted | 2026-06-26 |
 | 0009 | [Brand assets, knowledge-graph positioning, and the Atlas roadmap](0009-brand-assets-and-knowledge-graph-direction.md) | Accepted | 2026-06-26 |
+| 0010 | [Harden the experimental chat/generate automation against UI changes](0010-harden-chat-generate-automation.md) | Accepted | 2026-06-26 |

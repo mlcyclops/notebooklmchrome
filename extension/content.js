@@ -1497,6 +1497,244 @@ function setupDragAndDrop() {
 }
 
 // -------------------------------------------------------------
+// AUTOMATION RESILIENCE LAYER (ADR-0010)
+//
+// The chat / generate features drive NotebookLM's obfuscated, framework-generated
+// DOM. There is no public API and no stable markup contract, so these features are
+// inherently EXPERIMENTAL / best-effort. This layer makes them break less often and
+// be repairable in ONE place:
+//   - AUTOMATION_SELECTORS: every candidate selector for each target, centralized.
+//   - resolveElement(): ordered multi-strategy resolution (first hit wins).
+//   - waitForElement(): MutationObserver + immediate check + timeout (no fixed sleeps).
+//   - waitForStableText(): resolves once a streaming response stops changing.
+// Live correctness still depends on Google's UI and is NOT guaranteed.
+// -------------------------------------------------------------
+
+// Centralized selector config. Each logical target maps to an ORDERED list of
+// candidate strategies, tried in priority order:
+//   - a string            => CSS selector (resolved via safeQuery)
+//   - { buttonText }      => match a button / [role=button] by text or aria-label
+//   - { text, selector }  => match any element (optionally scoped by `selector`)
+//                            by text or aria-label
+// When Google changes the UI, this is the one place to update.
+const AUTOMATION_SELECTORS = {
+  // Chat prompt input box.
+  chatInput: [
+    'textarea[aria-label*="prompt" i]',
+    'textarea[aria-label*="question" i]',
+    'textarea',
+    '[contenteditable="true"]',
+    'input[type="text"]'
+  ],
+  // Button that submits the prompt.
+  sendButton: [
+    'button[aria-label*="Send" i]',
+    'button[type="submit"]',
+    'button[aria-label*="submit" i]',
+    { buttonText: 'Send' }
+  ],
+  // Container holding the streaming assistant response (last match = newest).
+  chatResponse: [
+    '[data-message-author="assistant"]',
+    '.message-bubble',
+    '.chat-message',
+    '[role="presentation"] .markdown'
+  ],
+  // Notebook Guide / Studio toggle.
+  guideButton: [
+    'button[aria-label*="Guide" i]',
+    '.notebook-guide-button',
+    { buttonText: 'Guide' }
+  ],
+  // Container the generated Studio artifact renders into.
+  studioOutput: [
+    '.studio-panel',
+    '.artifact-viewer',
+    '.guide-content'
+  ]
+};
+
+// Resolve a single logical target to a live element using its ordered strategies.
+// Returns the first matching element or null. Never throws (delegates to the
+// non-throwing safeQuery / findElementByText / findButtonByText helpers).
+function resolveElement(targetKey, root) {
+  const strategies = AUTOMATION_SELECTORS[targetKey];
+  if (!strategies) {
+    console.warn(`NotebookLM Folderizer: no AUTOMATION_SELECTORS entry for "${targetKey}"`);
+    return null;
+  }
+  const scope = root || document;
+  for (const strategy of strategies) {
+    let el = null;
+    if (typeof strategy === 'string') {
+      // safeQuery logs on a true miss, which is noisy across an ordered list; do a
+      // quiet try here and let resolveElement log once if everything misses.
+      try {
+        el = scope.querySelector(strategy);
+      } catch (err) {
+        console.warn(`NotebookLM Folderizer: invalid selector "${strategy}":`, err.message);
+        el = null;
+      }
+    } else if (strategy && strategy.buttonText) {
+      el = findButtonByText(strategy.buttonText);
+    } else if (strategy && strategy.text) {
+      el = findElementByText(strategy.selector || '*', strategy.text);
+    }
+    if (el) return el;
+  }
+  return null;
+}
+
+// Resolve ALL matching elements for a target (used where we need the newest of
+// several, e.g. the latest response bubble). Returns a flat, de-duped array in
+// document order across the strategies. Never throws.
+function resolveAllElements(targetKey, root) {
+  const strategies = AUTOMATION_SELECTORS[targetKey];
+  if (!strategies) return [];
+  const scope = root || document;
+  const out = [];
+  const seen = new Set();
+  for (const strategy of strategies) {
+    let nodes = [];
+    if (typeof strategy === 'string') {
+      try {
+        nodes = Array.from(scope.querySelectorAll(strategy));
+      } catch (err) {
+        nodes = [];
+      }
+    } else if (strategy && strategy.buttonText) {
+      const el = findButtonByText(strategy.buttonText);
+      nodes = el ? [el] : [];
+    } else if (strategy && strategy.text) {
+      const el = findElementByText(strategy.selector || '*', strategy.text);
+      nodes = el ? [el] : [];
+    }
+    for (const n of nodes) {
+      if (!seen.has(n)) { seen.add(n); out.push(n); }
+    }
+  }
+  return out;
+}
+
+// Wait for an element to appear. Accepts either a target key (string in
+// AUTOMATION_SELECTORS) or a predicate function returning an element-or-null.
+// Resolves with the element as soon as it exists (immediate synchronous check
+// first, then a MutationObserver on the subtree), or resolves with null on
+// timeout. Never rejects — callers branch on a null result. (ADR-0010)
+function waitForElement(predicateOrTargetKey, options) {
+  const opts = options || {};
+  const timeout = typeof opts.timeout === 'number' ? opts.timeout : 10000;
+  const root = opts.root || document;
+
+  const probe = typeof predicateOrTargetKey === 'function'
+    ? predicateOrTargetKey
+    : () => resolveElement(predicateOrTargetKey, root);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (el) => {
+      if (settled) return;
+      settled = true;
+      try { observer.disconnect(); } catch (e) { /* no-op */ }
+      clearTimeout(timer);
+      resolve(el || null);
+    };
+
+    // Immediate synchronous check — avoids waiting a full tick if already present.
+    let initial = null;
+    try { initial = probe(); } catch (e) { initial = null; }
+    if (initial) {
+      resolve(initial);
+      settled = true;
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      let el = null;
+      try { el = probe(); } catch (e) { el = null; }
+      if (el) finish(el);
+    });
+
+    const timer = setTimeout(() => finish(null), timeout);
+
+    try {
+      observer.observe(root === document ? (document.body || document.documentElement) : root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true
+      });
+    } catch (e) {
+      // If we can't observe, fall back to resolving null at the timeout.
+    }
+  });
+}
+
+// Wait for a streaming element's text to stop changing. Resolves with the final
+// text once it has been unchanged for `quietMs` (the stream has gone quiet), or on
+// `timeout`. While streaming, calls onProgress(fullText) on each observed change so
+// callers can forward incremental chunks. Uses a MutationObserver and never
+// rejects. (ADR-0010)
+function waitForStableText(el, options) {
+  const opts = options || {};
+  const quietMs = typeof opts.quietMs === 'number' ? opts.quietMs : 800;
+  const timeout = typeof opts.timeout === 'number' ? opts.timeout : 30000;
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+
+  return new Promise((resolve) => {
+    if (!el) { resolve(''); return; }
+
+    let settled = false;
+    let lastText = el.innerText || el.textContent || '';
+    let quietTimer = null;
+    let hardTimer = null;
+    let observer = null;
+
+    const readText = () => el.innerText || el.textContent || '';
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (quietTimer) clearTimeout(quietTimer);
+      if (hardTimer) clearTimeout(hardTimer);
+      try { if (observer) observer.disconnect(); } catch (e) { /* no-op */ }
+      resolve(readText());
+    };
+
+    const armQuiet = () => {
+      if (quietTimer) clearTimeout(quietTimer);
+      quietTimer = setTimeout(finish, quietMs);
+    };
+
+    const onChange = () => {
+      const current = readText();
+      if (current !== lastText) {
+        lastText = current;
+        if (onProgress) {
+          try { onProgress(current); } catch (e) { /* caller error must not break us */ }
+        }
+        armQuiet(); // text moved — restart the quiet window
+      }
+    };
+
+    observer = new MutationObserver(onChange);
+    try {
+      observer.observe(el, { childList: true, subtree: true, characterData: true });
+    } catch (e) {
+      // Can't observe — resolve with whatever we have after the quiet window.
+    }
+
+    // Emit the initial text so a response already present is forwarded, then start
+    // the quiet countdown so a non-streaming / already-complete reply still settles.
+    if (onProgress && lastText) {
+      try { onProgress(lastText); } catch (e) { /* no-op */ }
+    }
+    armQuiet();
+    hardTimer = setTimeout(finish, timeout);
+  });
+}
+
+// -------------------------------------------------------------
 // CHAT AGENT AUTOMATION (DOM-based Streamer)
 // -------------------------------------------------------------
 async function handleChatRequest(requestId, data) {
@@ -1516,49 +1754,28 @@ async function handleChatRequest(requestId, data) {
       return;
     }
 
-    // 2. Locate Chat input & Send Button
-    let inputEl = null;
-    let sendBtn = null;
-    let attempts = 0;
-
-    // Retry checking DOM elements. Use resilient, valid selectors with
-    // fallbacks (aria-label, role, submit type) plus a text-match helper.
-    while (attempts < 10 && (!inputEl || !sendBtn)) {
-      inputEl = document.querySelector('textarea, [contenteditable="true"], input[type="text"]');
-
-      // Valid native selectors only (the old `button svg[path*="send"]` was an
-      // invalid SyntaxError-throwing selector and has been removed).
-      sendBtn = document.querySelector(
-        'button[aria-label*="Send" i], button[type="submit"], button[aria-label*="submit" i]'
-      );
-
-      if (!sendBtn) {
-        // Fallback 1: button containing an svg whose markup mentions "send".
-        const svgBtn = Array.from(document.querySelectorAll('button')).find(btn => {
-          const svg = btn.querySelector('svg');
-          return svg && /send/i.test(svg.outerHTML);
-        });
-        if (svgBtn) sendBtn = svgBtn;
-      }
-
-      if (!sendBtn) {
-        // Fallback 2: match by visible text / aria-label.
-        sendBtn = findButtonByText('Send');
-      }
-
-      if (!inputEl || !sendBtn) {
-        attempts++;
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-
+    // 2. Locate Chat input & Send Button via the centralized selector config,
+    // waiting (MutationObserver-backed) instead of fixed-count polling. (ADR-0010)
+    const inputEl = await waitForElement('chatInput', { timeout: 10000 });
     if (!inputEl) {
-      console.warn('NotebookLM Folderizer: chat input not found in notebook UI');
-      throw new Error('Could not find chat input in the notebook UI');
+      console.warn('NotebookLM Folderizer: chat input not found — NotebookLM UI may have changed; update AUTOMATION_SELECTORS.chatInput in content.js');
+      chrome.runtime.sendMessage({
+        id: requestId,
+        type: 'chat_error',
+        error: 'Could not find the chat input — NotebookLM UI may have changed. Update AUTOMATION_SELECTORS.chatInput in content.js.'
+      });
+      return;
     }
+
+    const sendBtn = await waitForElement('sendButton', { timeout: 10000 });
     if (!sendBtn) {
-      console.warn('NotebookLM Folderizer: send button not found in notebook UI');
-      throw new Error('Could not find send button in the notebook UI');
+      console.warn('NotebookLM Folderizer: send button not found — NotebookLM UI may have changed; update AUTOMATION_SELECTORS.sendButton in content.js');
+      chrome.runtime.sendMessage({
+        id: requestId,
+        type: 'chat_error',
+        error: 'Could not find the send button — NotebookLM UI may have changed. Update AUTOMATION_SELECTORS.sendButton in content.js.'
+      });
+      return;
     }
 
     // 3. Clear and Type the Prompt
@@ -1573,62 +1790,55 @@ async function handleChatRequest(requestId, data) {
 
     // 4. Click Send
     sendBtn.click();
-    console.log('Clicked send button, observing streaming bubbles...');
+    console.log('Clicked send button, observing streaming response...');
 
-    // 5. Track streaming chat response
-    await new Promise(r => setTimeout(r, 1000)); // wait briefly for message to append
-    
-    // Scan for message container and locate last bubble
-    let bubble = null;
-    let bubbleAttempts = 0;
-    while (bubbleAttempts < 10 && !bubble) {
-      const bubbles = document.querySelectorAll('.message-bubble, .chat-message, [data-message-author="assistant"], [role="presentation"] .markdown');
-      if (bubbles.length > 0) {
-        bubble = bubbles[bubbles.length - 1]; // Select most recent
-      }
-      if (!bubble) {
-        bubbleAttempts++;
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
+    // 5. Wait for the assistant response container to appear, then stream it.
+    // resolveAllElements returns matches in document order; the newest bubble is
+    // the last one. We wait (MutationObserver-backed) for at least one to exist.
+    const bubble = await waitForElement(() => {
+      const bubbles = resolveAllElements('chatResponse');
+      return bubbles.length ? bubbles[bubbles.length - 1] : null;
+    }, { timeout: 10000 });
 
     if (!bubble) {
-      throw new Error('Failed to find assistant response bubble in UI');
+      console.warn('NotebookLM Folderizer: assistant response container not found — NotebookLM UI may have changed; update AUTOMATION_SELECTORS.chatResponse in content.js');
+      chrome.runtime.sendMessage({
+        id: requestId,
+        type: 'chat_error',
+        error: 'Could not find the assistant response in the UI — NotebookLM UI may have changed. Update AUTOMATION_SELECTORS.chatResponse in content.js.'
+      });
+      return;
     }
 
-    // Monitor InnerText of bubble
+    // Stream incremental chunks as the response grows, and finish when the text
+    // has been stable (quiet) for a beat. waitForStableText forwards each change
+    // via onProgress; we diff against what we've already sent and forward the
+    // delta, preserving the existing chat_chunk { text, done } contract.
     let lastLength = 0;
-    let textSent = '';
-    let staleTicks = 0;
-
-    const streamInterval = setInterval(() => {
-      const fullText = bubble.innerText || bubble.textContent || '';
-      
-      if (fullText.length > lastLength) {
-        const newChunk = fullText.substring(lastLength);
-        chrome.runtime.sendMessage({
-          id: requestId,
-          type: 'chat_chunk',
-          text: newChunk,
-          done: false
-        });
-        lastLength = fullText.length;
-        staleTicks = 0;
-      } else {
-        staleTicks++;
+    await waitForStableText(bubble, {
+      quietMs: 2500,
+      timeout: 120000,
+      onProgress: (fullText) => {
+        if (fullText.length > lastLength) {
+          const newChunk = fullText.substring(lastLength);
+          lastLength = fullText.length;
+          chrome.runtime.sendMessage({
+            id: requestId,
+            type: 'chat_chunk',
+            text: newChunk,
+            done: false
+          });
+        }
       }
+    });
 
-      // If text stops updating for 2.5 seconds, finish stream
-      if (staleTicks >= 25) { 
-        clearInterval(streamInterval);
-        chrome.runtime.sendMessage({
-          id: requestId,
-          type: 'chat_chunk',
-          text: '',
-          done: true
-        });
-      }
-    }, 100);
+    // Stream is quiet (or timed out) — signal completion.
+    chrome.runtime.sendMessage({
+      id: requestId,
+      type: 'chat_chunk',
+      text: '',
+      done: true
+    });
 
   } catch (err) {
     console.error('Chat request automation failed:', err);
@@ -1659,67 +1869,80 @@ async function handleGenerateProduct(requestId, data) {
       return;
     }
 
-    // 1. Locate Notebook Guide button and click it to toggle Studio Panel.
-    // Use valid selectors (the old `button:contains("Guide")` was invalid and
-    // threw a SyntaxError); fall back to a real text-match helper.
-    let guideBtn = document.querySelector(
-      'button[aria-label*="Guide" i], .notebook-guide-button'
-    );
-    if (!guideBtn) {
-      guideBtn = findButtonByText('Guide');
-    }
-
+    // 1. Locate Notebook Guide button (centralized config) and click it to toggle
+    // the Studio panel. Best-effort: a missing Guide button isn't fatal — the
+    // format button may already be visible. (ADR-0010)
+    const guideBtn = resolveElement('guideButton');
     if (guideBtn) {
       guideBtn.click();
-      await new Promise(r => setTimeout(r, 1000));
     } else {
-      console.warn('NotebookLM Folderizer: Notebook Guide button not found; continuing to look for the format button');
+      console.warn('NotebookLM Folderizer: Notebook Guide button not found — NotebookLM UI may have changed; continuing to look for the format button (update AUTOMATION_SELECTORS.guideButton in content.js if needed)');
     }
 
-    // 2. Find specific format generator button by visible text.
-    let formatBtn = null;
+    // 2. Find the specific format generator button by visible text. Wait for it to
+    // appear (MutationObserver-backed) so we don't race the panel opening.
     const formatLabel = String(format || '').toLowerCase().replace(/-/g, ' '); // e.g. "study guide" or "briefing doc"
 
-    if (formatLabel) {
+    const formatBtn = await waitForElement(() => {
+      if (!formatLabel) return null;
+      let match = null;
       document.querySelectorAll('button, [role="button"], .studio-button').forEach(btn => {
         const text = (btn.innerText || btn.textContent || '').toLowerCase();
         if (text.includes(formatLabel) || (formatLabel.includes('briefing') && text.includes('briefing'))) {
-          formatBtn = btn;
+          match = btn;
         }
       });
-    }
+      return match;
+    }, { timeout: 10000 });
 
     if (!formatBtn) {
-      console.warn(`NotebookLM Folderizer: no generation button found for format "${format}"`);
-      throw new Error(`Could not find generation button in Studio Guide panel for format: ${format}`);
+      console.warn(`NotebookLM Folderizer: no generation button found for format "${format}" — NotebookLM UI may have changed; update the format-button matching in handleGenerateProduct / AUTOMATION_SELECTORS in content.js`);
+      chrome.runtime.sendMessage({
+        id: requestId,
+        type: 'response',
+        data: { error: `Could not find a generation button for format "${format}" — NotebookLM UI may have changed. Update the format-button matching in content.js.` }
+      });
+      return;
     }
 
     // 3. Trigger Click to generate
     formatBtn.click();
     console.log(`Clicked generate product for ${format}. Waiting for completion...`);
 
-    // 4. Poll for output document to render in sidebar/modal
-    let outputText = '';
-    let success = false;
-    let pollAttempts = 0;
-
-    while (pollAttempts < 30 && !success) {
-      await new Promise(r => setTimeout(r, 2000));
-      pollAttempts++;
-
-      // Search for rendered document text in studio container
-      const studioPanel = document.querySelector('.studio-panel, .artifact-viewer, .guide-content');
-      if (studioPanel) {
-        const text = studioPanel.innerText.trim();
-        if (text.length > 50 && !text.includes('Generating')) {
-          outputText = text;
-          success = true;
+    // 4. Wait for the output document to render in the Studio container. Resolve
+    // the panel via the centralized config, then wait for its text to be present
+    // and not a "Generating…" placeholder. (ADR-0010)
+    const outputText = await new Promise((resolve) => {
+      const deadline = Date.now() + 60000;
+      const check = async () => {
+        const studioPanel = resolveElement('studioOutput');
+        if (studioPanel) {
+          const text = (studioPanel.innerText || studioPanel.textContent || '').trim();
+          if (text.length > 50 && !text.includes('Generating')) {
+            resolve(text);
+            return;
+          }
         }
-      }
-    }
+        if (Date.now() >= deadline) {
+          resolve('');
+          return;
+        }
+        // Re-probe shortly; resolveElement is cheap and the panel may not exist yet.
+        const panel = await waitForElement('studioOutput', { timeout: Math.max(0, Math.min(2000, deadline - Date.now())) });
+        if (!panel && Date.now() >= deadline) { resolve(''); return; }
+        setTimeout(check, 500);
+      };
+      check();
+    });
 
-    if (!success) {
-      throw new Error('Product generation timed out waiting for UI render');
+    if (!outputText) {
+      console.warn('NotebookLM Folderizer: Studio output did not render in time — NotebookLM UI may have changed; update AUTOMATION_SELECTORS.studioOutput in content.js');
+      chrome.runtime.sendMessage({
+        id: requestId,
+        type: 'response',
+        data: { error: 'Product generation timed out waiting for the Studio output to render — NotebookLM UI may have changed. Update AUTOMATION_SELECTORS.studioOutput in content.js.' }
+      });
+      return;
     }
 
     // Return successfully
