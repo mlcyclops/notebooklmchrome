@@ -10,6 +10,9 @@ let notebooksList = [];
 //   'error'   — detection failed; the list is unknown, not known-empty
 let notebooksStatus = 'idle';
 let isConnected = false;
+// Transient, in-memory search/filter query (ADR-0005). Lowercased substring;
+// never persisted. Empty string => normal full render.
+let searchQuery = '';
 
 // Folder ids the user has collapsed (accordion). Kept in memory only — this is
 // transient view state, so it deliberately does NOT touch the stored folder
@@ -110,6 +113,63 @@ function safeQuery(selector, root) {
   }
 }
 
+// -------------------------------------------------------------
+// SEARCH / FILTER HELPERS (ADR-0005)
+// -------------------------------------------------------------
+
+// Does a single notebook title contain the (already lowercased) query?
+function notebookMatchesQuery(nb, q) {
+  if (!q) return true;
+  return String((nb && nb.title) || '').toLowerCase().includes(q);
+}
+
+// Pure recursive predicate: should this folder node be visible under query `q`?
+// True if the folder's own name matches, OR any notebook assigned to it matches,
+// OR any descendant folder matches. Recurses through the same parentId /
+// notebookIds assignment logic the normal render uses. Never mutates anything.
+function nodeMatchesQuery(node, q, allFolders, notebooks) {
+  if (!q) return true;
+  const name = String((node && node.name) || '').toLowerCase();
+  if (name.includes(q)) return true;
+
+  const assignedIds = (node && node.notebookIds) || [];
+  for (const nb of notebooks) {
+    if (assignedIds.includes(nb.id) && notebookMatchesQuery(nb, q)) return true;
+  }
+
+  const children = allFolders.filter(f => f.parentId === node.id);
+  for (const child of children) {
+    if (nodeMatchesQuery(child, q, allFolders, notebooks)) return true;
+  }
+  return false;
+}
+
+// Injection-safe highlight: escape FIRST, then wrap matches of the query in the
+// already escaped string. User text is never placed into innerHTML raw. Returns
+// an HTML string safe to interpolate. `q` is the lowercased query.
+function highlightMatch(text, q) {
+  const escaped = escapeHtml(text);
+  if (!q) return escaped;
+  // Search the escaped string case-insensitively. Because escaping only maps to
+  // entity sequences that contain none of the characters in a typical typed
+  // query except for the leading chars of an entity, matching on the escaped
+  // string is safe and keeps offsets valid for the output we emit.
+  const haystack = escaped.toLowerCase();
+  const needle = q.toLowerCase();
+  if (!needle) return escaped;
+  let out = '';
+  let from = 0;
+  let idx = haystack.indexOf(needle, from);
+  while (idx !== -1) {
+    out += escaped.slice(from, idx);
+    out += '<mark class="nlm-search-hl">' + escaped.slice(idx, idx + needle.length) + '</mark>';
+    from = idx + needle.length;
+    idx = haystack.indexOf(needle, from);
+  }
+  out += escaped.slice(from);
+  return out;
+}
+
 // Initialize when page is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
@@ -190,6 +250,11 @@ function injectSidebar() {
       </div>
       <input type="file" id="nlm-import-file-input" accept="application/json,.json" hidden />
       <div class="nlm-import-status" id="nlm-import-status" hidden></div>
+      <div class="nlm-search-row">
+        <span class="nlm-search-icon">🔍</span>
+        <input type="search" id="nlm-search-input" class="nlm-search-input" placeholder="Search folders & notebooks" autocomplete="off" spellcheck="false" />
+        <button class="nlm-search-clear" id="nlm-search-clear" type="button" title="Clear search" hidden>×</button>
+      </div>
     </div>
     <div class="nlm-body" id="nlm-sidebar-body">
       <div class="nlm-section">
@@ -249,6 +314,30 @@ function injectSidebar() {
   importInput.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) importFolders(file);
+  });
+
+  // Search / filter (ADR-0005): debounced, client-side, in-memory. Typing only
+  // changes what is rendered from the existing folderData + notebooksList; it
+  // never mutates or persists data, and clearing restores the full tree.
+  const searchInput = document.getElementById('nlm-search-input');
+  const searchClear = document.getElementById('nlm-search-clear');
+  let searchDebounce = null;
+  searchInput.addEventListener('input', () => {
+    const raw = searchInput.value;
+    searchClear.hidden = raw.length === 0;
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      searchQuery = raw.trim().toLowerCase();
+      renderSidebar();
+    }, 180);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClear.hidden = true;
+    clearTimeout(searchDebounce);
+    searchQuery = '';
+    renderSidebar();
+    searchInput.focus();
   });
 
   // Setup Global Document Clicks for Dropdowns
@@ -753,10 +842,13 @@ function renderSidebar() {
   const unorganizedContainer = document.getElementById('nlm-unorganized-list');
   if (!treeContainer || !unorganizedContainer) return;
 
-  // 1. Render Folders Tree
-  treeContainer.innerHTML = renderFolderNode(null, 0);
+  const q = searchQuery;
 
-  // 2. Render Unorganized Notebooks
+  // 1. Render Folders Tree
+  const treeHtml = renderFolderNode(null, 0);
+  treeContainer.innerHTML = treeHtml;
+
+  // 2. Render Unorganized Notebooks (filtered by title under an active query).
   const organizedIds = new Set();
   folderData.folders.forEach(f => {
     if (f.notebookIds) {
@@ -764,8 +856,33 @@ function renderSidebar() {
     }
   });
 
+  let unorganized = notebooksList.filter(nb => !organizedIds.has(nb.id));
+  if (q) {
+    unorganized = unorganized.filter(nb => notebookMatchesQuery(nb, q));
+  }
+  if (unorganized.length === 0) {
+    const emptyMsg = q ? '' : 'No unorganized notebooks';
+    unorganizedContainer.innerHTML = emptyMsg
+      ? `<div style="font-size: 12px; color: var(--nlm-text-secondary); text-align: center; padding: 12px;">${emptyMsg}</div>`
+      : '';
+  } else {
+    unorganizedContainer.innerHTML = unorganized.map(nb => `
+      <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
+        <span class="nlm-notebook-icon">📓</span>
+        <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
+        <div class="nlm-notebook-actions">
+          <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
+        </div>
+      </div>
+    `).join('');
+  }
   const unorganized = notebooksList.filter(nb => !organizedIds.has(nb.id));
   unorganizedContainer.innerHTML = renderUnorganizedState(unorganized);
+
+  // 2b. Gentle "No matches" state when an active query matches nothing anywhere.
+  if (q && treeHtml.trim() === '' && unorganized.length === 0) {
+    treeContainer.innerHTML = `<div class="nlm-search-empty">No matches for “${escapeHtml(searchQuery)}”</div>`;
+  }
 
   // 3. Attach Listeners for buttons and Drag & Drop
   attachUIEventListeners();
@@ -817,15 +934,29 @@ function renderUnorganizedState(unorganized) {
 }
 
 function renderFolderNode(parentId, depth) {
-  const nodes = folderData.folders.filter(f => f.parentId === parentId);
+  const q = searchQuery;
+  let nodes = folderData.folders.filter(f => f.parentId === parentId);
+  // Under an active query, only keep folders that match or contain a match
+  // (ancestor preservation falls out of this: a folder stays whenever a
+  // descendant matches). Pure read of in-memory data; nothing is mutated.
+  if (q) {
+    nodes = nodes.filter(n => nodeMatchesQuery(n, q, folderData.folders, notebooksList));
+  }
   let html = '';
 
   for (const node of nodes) {
     const childFoldersHtml = renderFolderNode(node.id, depth + 1);
-    const notebooksInFolder = notebooksList.filter(n => node.notebookIds && node.notebookIds.includes(n.id));
+    let notebooksInFolder = notebooksList.filter(n => node.notebookIds && node.notebookIds.includes(n.id));
+    // The folder's own name matching means show all its children; otherwise only
+    // show the notebooks whose title matches.
+    const folderNameMatches = q && String(node.name || '').toLowerCase().includes(q);
+    if (q && !folderNameMatches) {
+      notebooksInFolder = notebooksInFolder.filter(n => notebookMatchesQuery(n, q));
+    }
 
     const folderId = escapeHtml(node.id);
     const folderName = escapeHtml(node.name);
+    const folderNameHtml = highlightMatch(node.name, q);
     // Color/icon are validated against the preset allow-lists before being
     // placed into markup or an inline style — never trust stored values raw.
     const folderColor = sanitizeFolderColor(node.color);
@@ -852,7 +983,7 @@ function renderFolderNode(parentId, depth) {
         <div class="nlm-folder-header${isCollapsed ? ' is-collapsed' : ''}" draggable="true" data-folder-id="${folderId}" style="border-left: 3px solid ${folderColor};">
           ${chevron}
           <span class="nlm-folder-icon" style="color: ${folderColor};">${folderIcon}</span>
-          <span class="nlm-folder-title" title="${folderName}">${folderName}</span>
+          <span class="nlm-folder-title" title="${folderName}">${folderNameHtml}</span>
           <div class="nlm-folder-actions">
             <button class="nlm-action-btn customize-folder-btn" data-folder-id="${folderId}" title="Customize">🎨</button>
             <button class="nlm-action-btn rename-folder-btn" data-folder-id="${folderId}" title="Rename">✏️</button>
@@ -860,6 +991,17 @@ function renderFolderNode(parentId, depth) {
             <button class="nlm-action-btn delete-folder-btn" data-folder-id="${folderId}" title="Delete">🗑️</button>
           </div>
         </div>
+        <div class="nlm-folder-children" data-folder-id="${folderId}">
+          ${childFoldersHtml}
+          ${notebooksInFolder.map(nb => `
+            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
+              <span class="nlm-notebook-icon">📓</span>
+              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
+              <div class="nlm-notebook-actions">
+                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
+              </div>
+            </div>
+          `).join('')}
         <div class="nlm-folder-children${isCollapsed ? ' collapsed' : ''}" data-folder-id="${folderId}">
           <div class="nlm-folder-children-inner">
             ${childFoldersHtml}

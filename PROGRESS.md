@@ -7,6 +7,9 @@
 - ✅ Context-management system established (CLAUDE.md, PROGRESS.md, ADR system) — this change.
 - ✅ Folder colors & icons: optional `color`/`icon` fields per folder, curated allow-listed palette + emoji set, inline customize popover, injection-safe rendering, backward-compatible normalization (ADR-0003).
 - ✅ Import / export folder structures (JSON): Export downloads a versioned `{version, exportedAt, data}` envelope; Import reads a file, validates/normalizes through `normalizeFolderData` + the color/icon sanitize allow-lists, and REPLACES the current folders after a `confirm()`. Offline-first, dependency-free (ADR-0004).
+- ✅ Search and filter within folders: debounced `<input type="search">` in the sidebar header filters the folder tree + unorganized list client-side, in memory, via a pure recursive `nodeMatchesQuery` predicate (folder name OR assigned notebook title OR descendant match; case-insensitive substring). Ancestors of a match stay visible/expanded; non-matching branches hide. Clear "×" button resets; empty query = full render; "No matches" empty state. Injection-safe escape-then-wrap highlighting. No data mutation/persistence (ADR-0005).
+
+## Next Up
 - ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full ~80 owned notebooks render). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states replacing the always-on "No unorganized notebooks" string.
 - 🚧 ADR-0008 increment 2 IN PROGRESS: premium UI overhaul. `content.css` fully rewritten with a design-system (color/elevation/radius/motion tokens), one motion language, and rich hover/focus/active states — folder & notebook icons "pop" (scale+tilt+glow) on hover, buttons lift, dropdowns/popovers animate, online status pulses, `prefers-reduced-motion` fully covered. CSS-only; markup, class names, and data model untouched. Needs live visual confirmation.
 
@@ -25,6 +28,14 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-26 — Search and filter within folders (ADR-0005)
+- Added a debounced (~180ms) `<input type="search">` with a clear ("×") button to the sidebar header, styled to the dark violet theme in `content.css`.
+- Introduced transient module state `searchQuery` (lowercased, never persisted). `renderSidebar()` / `renderFolderNode()` consult it and the unorganized list filters by title; an empty/cleared query restores the full tree.
+- Implemented pure helpers: `nodeMatchesQuery(node, q, allFolders, notebooks)` (folder name OR an assigned notebook title OR any descendant folder matches — reuses the same `parentId` / `notebookIds` assignment the normal render uses), `notebookMatchesQuery`, and an injection-safe `highlightMatch` (escape FIRST via `escapeHtml`, then wrap matches in `<mark class="nlm-search-hl">` on the already escaped string). No raw user text reaches innerHTML.
+- Ancestor preservation falls out of the predicate: a folder renders whenever a descendant matches, so ancestors of a match stay visible; non-matching siblings hide. A folder whose own name matches shows all its children. Filtering is purely visual — it never mutates or re-persists `folderData`; drag-and-drop still operates on the real data.
+- Added a gentle "No matches" state when an active query matches nothing.
+- Tested: `node --check` on all JS + manifest JSON parse (pass); headless Chromium load via Playwright (service worker registers, no load errors); a Node unit harness replicating the pure predicate/highlight logic — 16/16 assertions pass (folder-name match, nested-notebook match keeps ancestors, non-matching branches hidden, empty query returns all, case-insensitive substring, and highlight escapes a `<script>`-style name with no raw HTML).
+- Next: Sync folders across devices.
 ### 2026-06-26 — Fix: customize popover (clip → hover-hide → click-through) (ADR-0008, increment 2)
 - Three layered regressions on the 🎨 customize popover, all fixed in CSS:
   1. **Clipped**: `overflow: hidden` on `.nlm-folder-header` (added for the hover sheen) clipped the popover. Fix: removed it; gave `::before` `border-radius: inherit`.

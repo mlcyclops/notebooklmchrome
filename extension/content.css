@@ -307,6 +307,88 @@
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+/* Search / filter (ADR-0005) */
+.nlm-search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nlm-search-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 12px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.nlm-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nlm-border);
+  color: var(--nlm-text-primary);
+  border-radius: 8px;
+  padding: 8px 30px 8px 30px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.nlm-search-input::placeholder {
+  color: var(--nlm-text-secondary);
+}
+
+.nlm-search-input:focus {
+  border-color: var(--nlm-accent);
+  background: rgba(167, 139, 250, 0.08);
+}
+
+/* Hide the native search clear control; we provide our own button. */
+.nlm-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.nlm-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--nlm-text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nlm-search-clear:hover {
+  background: var(--nlm-folder-hover);
+  color: var(--nlm-accent);
+}
+
+.nlm-search-hl {
+  background: rgba(167, 139, 250, 0.35);
+  color: var(--nlm-text-primary);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.nlm-search-empty {
+  font-size: 12px;
+  color: var(--nlm-text-secondary);
+  text-align: center;
+  padding: 16px 12px;
+}
+
+/* Sidebar Body / Content Area */
 /* =========================================================================
    BODY / SCROLL AREA
    ========================================================================= */
