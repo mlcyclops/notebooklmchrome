@@ -7,8 +7,12 @@
 - ✅ Context-management system established (CLAUDE.md, PROGRESS.md, ADR system) — this change.
 - ✅ Folder colors & icons: optional `color`/`icon` fields per folder, curated allow-listed palette + emoji set, inline customize popover, injection-safe rendering, backward-compatible normalization (ADR-0003).
 - ✅ Import / export folder structures (JSON): Export downloads a versioned `{version, exportedAt, data}` envelope; Import reads a file, validates/normalizes through `normalizeFolderData` + the color/icon sanitize allow-lists, and REPLACES the current folders after a `confirm()`. Offline-first, dependency-free (ADR-0004).
+- ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full ~80 owned notebooks render). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states replacing the always-on "No unorganized notebooks" string.
+- 🚧 ADR-0008 increment 2 IN PROGRESS: premium UI overhaul. `content.css` fully rewritten with a design-system (color/elevation/radius/motion tokens), one motion language, and rich hover/focus/active states — folder & notebook icons "pop" (scale+tilt+glow) on hover, buttons lift, dropdowns/popovers animate, online status pulses, `prefers-reduced-motion` fully covered. CSS-only; markup, class names, and data model untouched. Needs live visual confirmation.
 
 ## Next Up
+- [ ] Confirm increment 2 visually on the live page; iterate on spacing/feel per user taste
+- [ ] Quiet the `localhost:3000/status` console spam (optional server poll; browser logs ERR_CONNECTION_REFUSED every 5s)
 - [ ] Search and filter within folders
 - [ ] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
@@ -20,6 +24,70 @@
 ---
 
 ## Session Log (append-only, newest first)
+
+### 2026-06-26 — Fix: customize popover (clip → hover-hide → click-through) (ADR-0008, increment 2)
+- Three layered regressions on the 🎨 customize popover, all fixed in CSS:
+  1. **Clipped**: `overflow: hidden` on `.nlm-folder-header` (added for the hover sheen) clipped the popover. Fix: removed it; gave `::before` `border-radius: inherit`.
+  2. **Hover-hide**: popover is a child of the hover-revealed `.nlm-folder-actions`; moving toward it left the header :hover and faded it out. Fix: `:has(.nlm-dropdown.show)` pins the actions container visible.
+  3. **Click-through**: later rows paint after the popover's owner row and intercepted clicks. Fix: `.nlm-folder:has(.nlm-dropdown.show)` / `.nlm-notebook-item:has(...)` get `position: relative; z-index: 50` to lift above siblings.
+- Same rules also harden the move-notebook (📂) popover. CSS braces 106/106.
+
+### 2026-06-26 — UI polish: remove status dot, widen sidebar (ADR-0008, increment 2)
+- Removed the header server-status dot (the red dot) from markup + CSS (deleted `.nlm-sync-status` rules and `nlm-pulse` keyframes). Decoupled `checkServerStatus()` from that element so the optional companion-server feature (`isConnected`) still works headlessly.
+- Widened the slide-out from 320px → 372px (updated the three coupled values: sidebar width, closed `left`, and toggle `.open` left). Helps long notebook/folder titles.
+- `node --check` clean; CSS braces 104/104.
+
+### 2026-06-26 — Accordion-collapsible folders (ADR-0008, increment 2)
+- Folders now collapse/expand by clicking the header. Added a rotating chevron (down=open, right=collapsed), shown only when a folder has children/notebooks.
+- Collapse state held in an in-memory `collapsedFolders` Set (survives re-renders, resets on reload) — deliberately NOT persisted to the folder data model, per ADR-0002/0003/0008 storage contract.
+- Markup: wrapped children in `.nlm-folder-children-inner`; animate via `grid-template-rows: 1fr↔0fr` (smooth for unknown heights), guide line fades on close. Click handler toggles classes on existing DOM (not a full re-render) so it animates; action buttons/dropdown clicks are excluded.
+- Reduced-motion: chevron + accordion added to the no-animation block. `node --check` clean; CSS braces 110/110.
+
+### 2026-06-26 — Premium UI design-system (ADR-0008, increment 2, pass 1)
+- Rewrote `extension/content.css` around a token-based design system: surfaces, accent ramp, semantic colors, radius scale, 3-step elevation, and a single motion language (`--nlm-ease` expo-out + 3 durations).
+- Interaction polish on every element: sidebar slide w/ accent seam, toggle glow, primary "+" rotates on hover, folder/notebook **icons pop** (scale + tilt + drop-shadow glow) on hover, rows lift/translate, action buttons reveal with slide+fade, dropdown scales from origin, color swatches glow, online sync dot pulses.
+- Accessibility: `:focus-visible` rings scoped to our UI; comprehensive `prefers-reduced-motion` block neutralizes transitions/animations and motion-on-hover.
+- Deliberately NO per-item entrance animations — `renderSidebar()` rebuilds innerHTML on every action, so replaying entrances would read as jank.
+- Brace-balanced (104/104); `node --check` clean on JS. Headless-Chromium load NOT run (Linux CI path absent on Windows) — needs live visual confirmation.
+
+### 2026-06-26 — Correct RPC + args: full owned list renders (ADR-0008, increment 1 DONE)
+- Correction to the previous entry: `ub2Bae` returns the **Featured gallery** (Shakespeare, Sherlock, etc.), not the user's notebooks. The user's own notebooks come from **`wXbhsf`**.
+- `wXbhsf` with empty `[]` returns only a small recent subset (2). The home page sends real query args: `[null,1,null,[2,null,null,[1,null,null,null,null,null,null,null,null,null,[1]]],null,[[null,null,[]],[[]],[null,[]]]]` — wired verbatim into `rpcArgs`.
+- Verified live (screenshot): all ~80 owned notebooks now populate the Unorganized list ("The Agent2Agent Protocol", "Loop Engineering", "Agent Tools…"). Original bug fully resolved.
+- Reference (for future sessions): NotebookLM list RPCs — `wXbhsf` = My notebooks (needs the args above), `ub2Bae` = Featured gallery. Entry shape: `[title, [sources], notebookId, emoji, …]`.
+
+### 2026-06-26 — Detection verified live: 32 notebooks (ADR-0008, increment 1 COMPLETE)
+- Network-tab capture on the home page showed the real list RPC is `ub2Bae` (not `wXbhsf`, which returns only recently-opened notebooks with full sources). Its first arg is a **mode selector**: `2` = Featured gallery, `1` = the user's own "My notebooks".
+- Switched the call to `ub2Bae` with args `[[1,null,null,[1,...,[1]]]]`. Live result: `RPC returned 32 notebooks (data frame: true)`, detection `ok`, sidebar Unorganized list populated with the user's real notebooks.
+- All temporary diagnostics confirmed removed (`grep` clean). Increment 1 closed.
+- Known cosmetic: `localhost:3000/status` polling logs `ERR_CONNECTION_REFUSED` every 5s when the optional companion server is offline (browser-level network log; can be throttled later).
+- Next: ADR-0008 increment 2 — premium design system, motion language, rich folder/icon hover states.
+
+### 2026-06-26 — Notebook field mapping locked in (ADR-0008, increment 1 follow-up 3)
+- Captured the real `wXbhsf` payload shape. A **notebook entry** = `[ title:string, sources:array, notebookId:idToken, emoji:string, … ]`; a **source row** = `[ [uuid], title, [meta], … ]` (note: `[0]` is an array for sources, a string for notebooks). This is why earlier heuristics grabbed source ids/titles.
+- Final `extractNotebooksFromRPC`: matches `typeof [0]==='string' && Array.isArray([1]) && isId([2])`, reading `title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`. All temporary diagnostics removed.
+- **Open question (completeness):** `wXbhsf` with empty args returned only **2** notebooks ("Animal Versus Artificial Intelligence", "Invention Of The Lightbulb") — neither in the user's original full home list. Likely a recent/subset, not list-all. Next: capture the home page's real list `batchexecute` rpcid from the Network tab (args probably carry paging/scope) and switch to it, or page through.
+
+### 2026-06-26 — Notebook title mapping (ADR-0008, increment 1 follow-up 2)
+- Authenticated RPC confirmed working live: `RPC returned 6 notebooks (data frame: true)`, detection `ok`, sidebar Unorganized list populated.
+- Bug: titles rendered as id tokens because `extractNotebooksFromRPC` assumed the title is at `arr[1]`, which is an id-like field in NotebookLM rows.
+- Rewrote the parser: `isId`/`isHumanTitle` helpers + `bestTitle()` picks the longest human-readable string (whitespace or non-id char) in each id row instead of a fixed index. Logs up to 2 "id row without a human title" samples for diagnostics.
+- Open: only 6 returned vs. a larger home list (possible pagination/secondary rpc) — revisit after titles confirmed. `localhost:3000/status` console spam (optional server offline) still to be quieted.
+
+### 2026-06-26 — Authenticated list RPC (ADR-0008, increment 1 follow-up)
+- Live test surfaced the real detection failure: the `wXbhsf` batchexecute call returned **HTTP 400** (missing XSRF token) and the DOM scan found 0 (list-view rows expose no `/notebook/<id>` in attributes).
+- `fetchNotebooksList()` now builds an authenticated request: `getWizParam()` text-scans the page HTML for `SNlM0e` (sent as `at` in the body), `FdrFJe` (`f.sid`), and `cfb2h` (`bl`); query adds `_reqid` + `rt=c`. Added a rolling `rpcReqId`.
+- Added `extractNotebooksFromBatch()` — tolerant parser for the `)]}'` chunked response; unwraps the nested `wrb.fr` JSON string and recurses via `extractNotebooksFromRPC`. Returns `{ notebooks, sawFrame }`; `rpcOk` is set only when a real data frame is seen, so a stale rpcid (200, no frame) doesn't masquerade as a verified-empty account.
+- `node --check` passes. Awaiting live confirmation of the `NotebookLM Folderizer:` console output to confirm the `at`-token fix clears the 400.
+
+### 2026-06-26 — Trustworthy notebook detection & states (ADR-0008, increment 1)
+- Accepted ADR-0008 (Premium UI/UX redesign and trustworthy notebook states). Renumbered from a draft 0004→0005→0008 after rebasing onto origin/main (upstream had taken 0004 for import/export); 0005–0007 left as reserved gaps per request.
+- Root cause of "No unorganized notebooks" while the home is full: `notebooksList` came back empty because the list RPC (`wXbhsf`) could fail and the only DOM fallback matched `<a href="/notebook/…">` anchors, which the list view doesn't expose. The empty branch then hardcoded "No unorganized notebooks", conflating *failed*, *loading*, and *truly zero*.
+- Added a `notebooksStatus` lifecycle (`idle`/`loading`/`ok`/`error`). `fetchNotebooksList()` now tries the RPC then always merges in a structural DOM scan (`scrapeNotebooksFromDom`) that reads notebook URLs from *any* attribute on *any* element (not just anchors), deduped by id. Status is `ok` when the RPC succeeds or anything is found; `error` only when the RPC failed *and* nothing was scraped (ambiguous → offer retry, don't claim empty).
+- `refreshData()` sets `loading` and renders immediately before fetching. `renderUnorganizedState()` renders four honest states: shimmer skeletons (loading), ⚠️ message + **Retry** button (error), 🎉 "Everything's filed away" (verified empty), or the notebook list.
+- CSS: added skeleton shimmer, message block, retry button (token-based, dark violet theme), entrance fade, and a `prefers-reduced-motion` guard that disables the non-essential animations.
+- Tested: `node --check` passes on content.js/background.js/server.js; manifest.json parses. Headless-Chromium load NOT run (checklist targets a Linux CI chromium path absent on this Windows box) — needs verification on the live page.
+- Next: ADR-0008 increment 2 — the full design-system + animation/hover overhaul.
 
 ### 2026-06-26 — Import / export folder structures (ADR-0004)
 - Added **Export** and **Import** buttons to the sidebar header next to "New Root Folder".

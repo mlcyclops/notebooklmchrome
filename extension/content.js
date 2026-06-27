@@ -2,7 +2,25 @@
 
 let folderData = { folders: [] };
 let notebooksList = [];
+// Detection lifecycle for the notebook list, so the UI can tell a *verified
+// empty* account apart from a *failed/loading* fetch (ADR-0008).
+//   'idle'    — no fetch attempted yet
+//   'loading' — a fetch is in flight
+//   'ok'      — detection succeeded (notebooksList is trustworthy, may be empty)
+//   'error'   — detection failed; the list is unknown, not known-empty
+let notebooksStatus = 'idle';
 let isConnected = false;
+
+// Folder ids the user has collapsed (accordion). Kept in memory only — this is
+// transient view state, so it deliberately does NOT touch the stored folder
+// data model / storage contract (ADR-0002/0003/0008). Survives re-renders
+// within a session; resets on reload, which is expected for a view toggle.
+const collapsedFolders = new Set();
+
+// Rolling request id for batchexecute calls. Google increments `_reqid` by a
+// fixed step per request within a session; the exact value is not validated, it
+// just needs to be present and changing.
+let rpcReqId = Math.floor(1e5 + Math.random() * 9e5);
 
 const STORAGE_KEY = 'nlm_folders';
 
@@ -158,7 +176,6 @@ function injectSidebar() {
     <div class="nlm-header">
       <div class="nlm-title-row">
         <h2 class="nlm-title">Notebook Folders</h2>
-        <div class="nlm-sync-status" id="nlm-sync-status" title="Server Connection Status"></div>
       </div>
       <button class="nlm-btn-add" id="nlm-btn-add-folder">
         <span>➕</span> New Root Folder
@@ -251,21 +268,17 @@ function injectSidebar() {
 // METADATA SYNC (Companion Server REST Calls)
 // -------------------------------------------------------------
 async function checkServerStatus() {
-  const statusIndicator = document.getElementById('nlm-sync-status');
-  if (!statusIndicator) return;
+  // The optional companion server enables programmatic control. We track
+  // `isConnected` for those features; the old header status dot was removed, so
+  // this no longer depends on a DOM element (but updates it if one ever exists).
   try {
     const res = await fetch('http://localhost:3000/status');
-    if (res.ok) {
-      statusIndicator.classList.add('online');
-      isConnected = true;
-    } else {
-      statusIndicator.classList.remove('online');
-      isConnected = false;
-    }
+    isConnected = res.ok;
   } catch (e) {
-    statusIndicator.classList.remove('online');
     isConnected = false;
   }
+  const statusIndicator = document.getElementById('nlm-sync-status');
+  if (statusIndicator) statusIndicator.classList.toggle('online', isConnected);
 }
 
 // Default folder structure seeded on first run so the UI is never blank.
@@ -488,71 +501,227 @@ function setImportStatus(message, isError) {
 // NOTEBOOK LM API BRIDGE (LIST NOTEBOOKS)
 // -------------------------------------------------------------
 async function fetchNotebooksList() {
+  // Detection has two independent sources (ADR-0008): the batchexecute RPC and a
+  // structural DOM scan. We try the RPC first (authoritative when it works), then
+  // merge in anything the DOM scan finds so a changed RPC shape or a list view
+  // that the RPC misses can't leave the user staring at a falsely empty list.
+  let rpcOk = false;
+  const merged = [];
+  const seen = new Set();
+  const addAll = (items) => {
+    for (const nb of items) {
+      if (nb && nb.id && !seen.has(nb.id)) {
+        seen.add(nb.id);
+        merged.push(nb);
+      }
+    }
+  };
+
   try {
-    // Call batchExecute RPC wXbhsf
+    // `wXbhsf` is the "My notebooks" RPC: it returns the user's own notebooks
+    // (each as [title, sources, id, emoji, …]) newest-first. `ub2Bae` was the
+    // wrong call — it returns the Featured gallery. Empty args `[]` return only a
+    // small recent subset, so we send the page's real query args (copied verbatim
+    // from the home page request) which return the full owned list.
     const rpcId = 'wXbhsf';
-    const payload = [[[ rpcId, "[]", null, "1" ]]];
-    const reqBody = 'f.req=' + encodeURIComponent(JSON.stringify(payload));
-    
-    const res = await fetch(`/_/LabsTailwindUi/data/batchexecute?rpcids=${rpcId}`, {
+    const rpcArgs = '[null,1,null,[2,null,null,[1,null,null,null,null,null,null,null,null,null,[1]]],null,[[null,null,[]],[[]],[null,[]]]]';
+
+    // Google's batchexecute rejects requests (HTTP 400) without the per-session
+    // XSRF token `at` (SNlM0e). Pull it — and the session ids that round out a
+    // well-formed request — from the WIZ data embedded in the page HTML.
+    const at = getWizParam('SNlM0e');
+    const fsid = getWizParam('FdrFJe');
+    const bl = getWizParam('cfb2h');
+
+    const innerReq = JSON.stringify([[[ rpcId, rpcArgs, null, 'generic' ]]]);
+    const body = new URLSearchParams();
+    body.set('f.req', innerReq);
+    if (at) body.set('at', at);
+
+    const qs = new URLSearchParams({ rpcids: rpcId, 'source-path': '/', hl: 'en', rt: 'c' });
+    if (fsid) qs.set('f.sid', fsid);
+    if (bl) qs.set('bl', bl);
+    rpcReqId += 100000;
+    qs.set('_reqid', String(rpcReqId));
+
+    const res = await fetch(`/_/LabsTailwindUi/data/batchexecute?${qs.toString()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
       },
-      body: reqBody
+      body: body.toString()
     });
 
     if (!res.ok) {
-      throw new Error(`RPC list request failed with status ${res.status}`);
+      throw new Error(`RPC list request failed with status ${res.status}` +
+        (at ? '' : ' (no SNlM0e token found in page)'));
     }
 
     const text = await res.text();
-    const cleaned = text.startsWith(")]}'") ? text.substring(4) : text;
-    const outer = JSON.parse(cleaned);
-    
-    // Parse Google response structure using self-healing heuristic
-    const rpcResponseStr = outer[0][0][1];
-    const rpcResponseData = JSON.parse(rpcResponseStr);
-
-    notebooksList = extractNotebooksFromRPC(rpcResponseData);
-    console.log('Extracted notebooks:', notebooksList);
-    return notebooksList;
+    const { notebooks: found, sawFrame } = extractNotebooksFromBatch(text);
+    addAll(found);
+    // Only treat the RPC as authoritative if it actually returned a data frame.
+    // A 200 with no frame means a stale rpcid — fall through to the DOM scan.
+    rpcOk = sawFrame;
+    console.log('NotebookLM Folderizer: RPC returned', found.length,
+      'notebooks (data frame:', sawFrame, ')');
+    if (!sawFrame) {
+      console.warn('NotebookLM Folderizer: RPC responded 200 but with no data frame; rpcid may be stale.');
+    }
   } catch (err) {
-    console.warn('Failed to query list_notebooks RPC. Scraping DOM links instead.', err);
-    // DOM Scraping fallback: search for links on home page
-    const list = [];
-    document.querySelectorAll('a').forEach(a => {
-      const href = a.getAttribute('href') || '';
-      const match = href.match(/\/notebook\/([a-zA-Z0-9_-]+)/);
-      if (match) {
-        const id = match[1];
-        const title = a.innerText.trim() || 'Untitled Notebook';
-        if (id && !list.some(n => n.id === id) && title !== 'Folders') {
-          list.push({ id, title });
+    console.warn('NotebookLM Folderizer: list RPC failed; relying on DOM scan.', err);
+  }
+
+  // Always fold in the DOM scan — cheap, and it catches notebooks the RPC missed.
+  try {
+    addAll(scrapeNotebooksFromDom());
+  } catch (err) {
+    console.warn('NotebookLM Folderizer: DOM scan failed.', err);
+  }
+
+  notebooksList = merged;
+
+  // Status policy: the RPC succeeding makes an empty list *trustworthy* (a real
+  // empty account). If the RPC failed, an empty DOM scan is ambiguous — treat it
+  // as an error so the UI offers a retry instead of lying "nothing here".
+  if (rpcOk || merged.length > 0) {
+    notebooksStatus = 'ok';
+  } else {
+    notebooksStatus = 'error';
+  }
+
+  console.log('NotebookLM Folderizer: notebook detection', notebooksStatus, '-', merged.length, 'found');
+  return notebooksList;
+}
+
+// Structural DOM fallback for the home/list views. Rather than only reading
+// <a href="/notebook/…"> anchors (which the list view does not expose), this
+// scans any attribute on any element for a notebook URL, so JS-navigated rows
+// and cards are detected too. Titles come from link text, aria-label, or the
+// nearest meaningful row text.
+function scrapeNotebooksFromDom() {
+  const list = [];
+  const seen = new Set();
+  const idRe = /\/notebook\/([a-zA-Z0-9_-]+)/;
+
+  const add = (id, rawTitle) => {
+    if (!id || seen.has(id)) return;
+    let title = (rawTitle || '').replace(/\s+/g, ' ').trim();
+    if (!title || title === 'Folders') title = 'Untitled Notebook';
+    seen.add(id);
+    list.push({ id, title });
+  };
+
+  // 1. Classic anchors.
+  document.querySelectorAll('a[href*="/notebook/"]').forEach(a => {
+    const m = (a.getAttribute('href') || '').match(idRe);
+    if (m) add(m[1], a.getAttribute('aria-label') || a.innerText);
+  });
+
+  // 2. Any element carrying a notebook URL in some attribute (data-*, jslog,
+  //    href on non-anchors, etc.) — covers list rows that navigate via script.
+  if (list.length === 0) {
+    document.querySelectorAll('*').forEach(el => {
+      if (!el.attributes || el.attributes.length === 0) return;
+      for (const attr of el.attributes) {
+        const m = attr.value && attr.value.match(idRe);
+        if (m) {
+          const titleHost = el.closest('[role="row"], [role="listitem"], li, tr') || el;
+          add(m[1], el.getAttribute('aria-label') || titleHost.innerText || el.innerText);
+          break;
         }
       }
     });
-    notebooksList = list;
-    return notebooksList;
+  }
+
+  return list;
+}
+
+// Read a WIZ bootstrap parameter (e.g. SNlM0e, FdrFJe, cfb2h) out of the page
+// HTML. The content script's isolated world can't touch the page's `window`,
+// but these values are embedded as "name":"value" in inline scripts, so a
+// text scan of the served markup recovers them.
+function getWizParam(name) {
+  try {
+    const html = document.documentElement.innerHTML;
+    const m = html.match(new RegExp('"' + name + '":"([^"]*)"'));
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
   }
 }
 
-// Self-healing recursive parser for notebook rows in arbitrary JSON arrays
+// Tolerant parser for a batchexecute response. The payload comes back as a
+// `)]}'`-prefixed sequence of length-delimited JSON chunks; the notebook data
+// lives inside a `wrb.fr` frame as a *nested* JSON string. We scan every chunk,
+// unwrap any `wrb.fr` payload we find, and recurse for notebook rows — so the
+// exact framing and chunk count don't matter.
+function extractNotebooksFromBatch(text) {
+  const notebooks = [];
+  let sawFrame = false; // did we see a real wrb.fr data frame (vs. an error)?
+  const push = (items) => {
+    for (const nb of items) {
+      if (nb && nb.id && !notebooks.some(n => n.id === nb.id)) notebooks.push(nb);
+    }
+  };
+
+  const body = text.replace(/^\)\]\}'\n?/, '');
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('[')) continue;
+    let chunk;
+    try {
+      chunk = JSON.parse(trimmed);
+    } catch (e) {
+      continue;
+    }
+    const walk = (arr) => {
+      if (!Array.isArray(arr)) return;
+      if (arr[0] === 'wrb.fr' && typeof arr[2] === 'string') {
+        sawFrame = true;
+        try {
+          push(extractNotebooksFromRPC(JSON.parse(arr[2])));
+        } catch (e) { /* not the frame we want */ }
+      }
+      for (const item of arr) {
+        if (Array.isArray(item)) walk(item);
+      }
+    };
+    walk(chunk);
+  }
+  // `sawFrame` distinguishes a genuine empty account (data frame, zero rows)
+  // from a stale/wrong rpcid (no data frame) so the caller doesn't claim "ok".
+  return { notebooks, sawFrame };
+}
+
+// Parse notebook rows out of a batchexecute payload. A notebook entry has a
+// fixed, recognizable shape:
+//   [ title (string), sources (array), notebookId (id token), emoji (string), … ]
+// We recurse so the entry's position within the wrapper doesn't matter, but we
+// read each field by index, which is far more reliable than guessing which
+// string is the title (source rows look superficially similar).
 function extractNotebooksFromRPC(data) {
   const notebooks = [];
+
+  // An opaque id (UUID or base64url): id-safe characters, no spaces.
+  const isId = (s) =>
+    typeof s === 'string' && s.length >= 8 && s.length <= 80 &&
+    !s.includes(' ') && !s.includes('\n') && /^[a-zA-Z0-9_-]+$/.test(s);
+
   function recurse(arr) {
     if (!Array.isArray(arr)) return;
-    
-    if (arr.length >= 2 &&
-        typeof arr[0] === 'string' && arr[0].length >= 8 && arr[0].length <= 50 &&
-        typeof arr[1] === 'string' && arr[1].trim().length > 0 &&
-        !arr[0].includes(' ') && !arr[0].includes('\n') &&
-        arr[0].match(/^[a-zA-Z0-9_-]+$/)) {
-      
-      if (!notebooks.some(n => n.id === arr[0])) {
+
+    // title at [0], sources array at [1], notebook id at [2]. Requiring all
+    // three excludes source rows (whose [0] is an array) and metadata tuples.
+    if (typeof arr[0] === 'string' && arr[0].trim().length > 0 &&
+        Array.isArray(arr[1]) && isId(arr[2])) {
+      const id = arr[2];
+      if (!notebooks.some(n => n.id === id)) {
         notebooks.push({
-          id: arr[0],
-          title: arr[1].trim()
+          id,
+          title: arr[0].trim(),
+          sourceCount: arr[1].length,
+          icon: typeof arr[3] === 'string' ? arr[3] : null
         });
       }
     }
@@ -568,8 +737,12 @@ function extractNotebooksFromRPC(data) {
 }
 
 async function refreshData() {
+  // Show the loading state immediately so the user sees progress, not a stale
+  // or falsely-empty list, while the fetch is in flight (ADR-0008).
+  notebooksStatus = 'loading';
+  renderSidebar();
   await fetchNotebooksList();
-  await loadFolders();
+  await loadFolders(); // re-renders with the resolved status
 }
 
 // -------------------------------------------------------------
@@ -592,22 +765,55 @@ function renderSidebar() {
   });
 
   const unorganized = notebooksList.filter(nb => !organizedIds.has(nb.id));
-  if (unorganized.length === 0) {
-    unorganizedContainer.innerHTML = `<div style="font-size: 12px; color: var(--nlm-text-secondary); text-align: center; padding: 12px;">No unorganized notebooks</div>`;
-  } else {
-    unorganizedContainer.innerHTML = unorganized.map(nb => `
-      <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
-        <span class="nlm-notebook-icon">📓</span>
-        <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
-        <div class="nlm-notebook-actions">
-          <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
-        </div>
-      </div>
-    `).join('');
-  }
+  unorganizedContainer.innerHTML = renderUnorganizedState(unorganized);
 
   // 3. Attach Listeners for buttons and Drag & Drop
   attachUIEventListeners();
+
+  // Retry affordance for the error state (ADR-0008).
+  const retryBtn = document.getElementById('nlm-notebooks-retry');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => { refreshData(); });
+  }
+}
+
+// Render the four honest states of the unorganized list (ADR-0008): loading,
+// error (with retry), verified-empty, and the populated list. Distinguishing
+// these is what stops the UI from showing "No unorganized notebooks" when the
+// real cause is a fetch that never resolved.
+function renderUnorganizedState(unorganized) {
+  if (notebooksStatus === 'loading') {
+    const skeleton = `<div class="nlm-skeleton-row"><span class="nlm-skeleton-dot"></span><span class="nlm-skeleton-bar"></span></div>`;
+    return `<div class="nlm-notebooks-loading" aria-live="polite">${skeleton.repeat(4)}</div>`;
+  }
+
+  if (notebooksStatus === 'error') {
+    return `
+      <div class="nlm-notebooks-message nlm-notebooks-error" role="alert">
+        <div class="nlm-message-icon">⚠️</div>
+        <div class="nlm-message-text">Couldn't load your notebooks.</div>
+        <button class="nlm-btn-retry" id="nlm-notebooks-retry">Retry</button>
+      </div>`;
+  }
+
+  if (unorganized.length === 0) {
+    // Verified empty: the fetch succeeded and every notebook is filed.
+    return `
+      <div class="nlm-notebooks-message nlm-notebooks-empty">
+        <div class="nlm-message-icon">🎉</div>
+        <div class="nlm-message-text">Everything's filed away.</div>
+      </div>`;
+  }
+
+  return unorganized.map(nb => `
+    <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
+      <span class="nlm-notebook-icon">📓</span>
+      <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
+      <div class="nlm-notebook-actions">
+        <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 function renderFolderNode(parentId, depth) {
@@ -624,9 +830,27 @@ function renderFolderNode(parentId, depth) {
     // placed into markup or an inline style — never trust stored values raw.
     const folderColor = sanitizeFolderColor(node.color);
     const folderIcon = sanitizeFolderIcon(node.icon);
+    // Accordion: a folder is collapsible when it has nested folders or
+    // notebooks. Collapse state lives in `collapsedFolders` so it survives the
+    // full re-render that follows most actions.
+    const notebooksHtml = notebooksInFolder.map(nb => `
+            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
+              <span class="nlm-notebook-icon">📓</span>
+              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
+              <div class="nlm-notebook-actions">
+                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
+              </div>
+            </div>
+          `).join('');
+    const hasContent = childFoldersHtml.trim().length > 0 || notebooksInFolder.length > 0;
+    const isCollapsed = hasContent && collapsedFolders.has(node.id);
+    const chevron = hasContent
+      ? `<span class="nlm-folder-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg></span>`
+      : `<span class="nlm-folder-chevron nlm-folder-chevron--empty" aria-hidden="true"></span>`;
     html += `
       <div class="nlm-folder" data-folder-id="${folderId}">
-        <div class="nlm-folder-header" draggable="true" data-folder-id="${folderId}" style="border-left: 3px solid ${folderColor};">
+        <div class="nlm-folder-header${isCollapsed ? ' is-collapsed' : ''}" draggable="true" data-folder-id="${folderId}" style="border-left: 3px solid ${folderColor};">
+          ${chevron}
           <span class="nlm-folder-icon" style="color: ${folderColor};">${folderIcon}</span>
           <span class="nlm-folder-title" title="${folderName}">${folderName}</span>
           <div class="nlm-folder-actions">
@@ -636,17 +860,11 @@ function renderFolderNode(parentId, depth) {
             <button class="nlm-action-btn delete-folder-btn" data-folder-id="${folderId}" title="Delete">🗑️</button>
           </div>
         </div>
-        <div class="nlm-folder-children" data-folder-id="${folderId}">
-          ${childFoldersHtml}
-          ${notebooksInFolder.map(nb => `
-            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
-              <span class="nlm-notebook-icon">📓</span>
-              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
-              <div class="nlm-notebook-actions">
-                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
-              </div>
-            </div>
-          `).join('')}
+        <div class="nlm-folder-children${isCollapsed ? ' collapsed' : ''}" data-folder-id="${folderId}">
+          <div class="nlm-folder-children-inner">
+            ${childFoldersHtml}
+            ${notebooksHtml}
+          </div>
         </div>
       </div>
     `;
@@ -698,6 +916,24 @@ function attachUIEventListeners() {
       e.stopPropagation();
       const id = btn.getAttribute('data-folder-id');
       showCustomizeDropdown(btn, id);
+    });
+  });
+
+  // Accordion: click a folder header to collapse/expand its contents. We toggle
+  // classes on the existing DOM (not a full re-render) so the grid-rows
+  // transition animates; the action buttons stop propagation so they're unaffected.
+  document.querySelectorAll('.nlm-folder-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.nlm-folder-actions') || e.target.closest('.nlm-dropdown')) return;
+      const id = header.getAttribute('data-folder-id');
+      const folder = header.closest('.nlm-folder');
+      const children = folder && folder.querySelector(':scope > .nlm-folder-children');
+      // Only foldable when there's something inside (chevron present).
+      if (!children || !header.querySelector('.nlm-folder-chevron:not(.nlm-folder-chevron--empty)')) return;
+      const collapsed = !collapsedFolders.has(id);
+      if (collapsed) collapsedFolders.add(id); else collapsedFolders.delete(id);
+      header.classList.toggle('is-collapsed', collapsed);
+      children.classList.toggle('collapsed', collapsed);
     });
   });
 

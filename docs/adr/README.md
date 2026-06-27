@@ -24,3 +24,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0002 | [Offline-first folders via chrome.storage.local](0002-offline-first-folders-via-chrome-storage.md) | Accepted | 2026-06-26 |
 | 0003 | [Folder colors and icons](0003-folder-colors-and-icons.md)                              | Accepted | 2026-06-26 |
 | 0004 | [Import / export folder structures (JSON)](0004-import-export-folder-structures.md)     | Accepted | 2026-06-26 |
+| 0008 | [Premium UI/UX redesign and trustworthy notebook states](0008-premium-ui-ux-and-trustworthy-notebook-states.md) | Accepted | 2026-06-26 |
