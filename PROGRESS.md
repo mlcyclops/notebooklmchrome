@@ -11,11 +11,11 @@
 - ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full owned list renders). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states.
 - ✅ ADR-0008 increment 2 — premium UI overhaul: token-based design system (color/elevation/radius/motion), rich hover/focus/active states (folder & notebook icons pop), accordion-collapsible folders, removed server-status dot, widened slide-out to 372px, popover fixes. CSS + render-layer only; storage contract untouched.
 - ✅ Merge-conflict repair: PR #5 (search) ⊕ PR #6 (UI) collided and left `content.js` broken on `main` (duplicate `unorganized` decl + doubled `.nlm-folder-children`). Reconciled so search + accordion + honest-states + highlighting all coexist.
+- ✅ Sync folders across devices: opt-in cross-device sync built on `chrome.storage.sync` (no companion server, no new permissions). A sidebar header toggle persists `nlm_sync_enabled` in `chrome.storage.local` (default OFF). `chrome.storage.local` stays the always-present render source; when sync is ON, `writeFoldersToStorage` mirrors the same `nlm_folders` value into `chrome.storage.sync`, and a `chrome.storage.onChanged` listener (area `sync`) pulls remote edits into local + re-renders live (loop-guarded). A quota/error on a sync write degrades gracefully to local-only — keeps data, reverts the toggle, and surfaces a calm "Folder set too large to sync — kept locally" status. Last-write-wins conflict policy; CRDT/merge deferred (ADR-0006).
 
 ## Next Up
 - [ ] Confirm the reconciled build visually on the live page (search + accordion + popovers together)
 - [ ] Quiet the `localhost:3000/status` console spam (optional server poll; browser logs ERR_CONNECTION_REFUSED every 5s)
-- [ ] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
 
@@ -34,6 +34,15 @@
   - `renderFolderNode`: search filtering (`nodeMatchesQuery`) + highlight + single accordion children block; force-expands while a query is active so matches show.
 - Verified: `node --check` passes on all JS; single `unorganized` decl; single `.nlm-folder-children` per node; both features' handlers present; CSS braces 116/116.
 - CSS, search helpers, ADR index, and other files from the merge were already correct — only the two render functions needed repair.
+
+### 2026-06-26 — Sync folders across devices (ADR-0006)
+- Implemented opt-in cross-device folder sync on `chrome.storage.sync` — no companion server, no new permissions (existing `storage` permission covers it). See ADR-0006.
+- Added a sync toggle (theme-styled switch) + a small status line to the sidebar header. The opt-in flag persists in `chrome.storage.local` under `nlm_sync_enabled` (default OFF, so existing behavior is unchanged until a user opts in); an in-memory `syncEnabled` mirror lets synchronous write/onChanged paths consult it without an async round-trip.
+- `writeFoldersToStorage` now always writes local first (offline source of truth), then — only when sync is ON — mirrors the same `nlm_folders` value to `chrome.storage.sync` via `writeFoldersToSync`, wrapped in try/catch + `chrome.runtime.lastError` checks. On a quota/error (`QUOTA_BYTES_PER_ITEM_EXCEEDED`), `handleSyncDegradation` keeps local data, reverts the toggle to OFF, and surfaces a calm "Folder set too large to sync — kept locally" status. Never throws into the page, never loses data.
+- `readFoldersFromStorage` is unchanged (local stays the render source). Remote edits flow IN via a single `chrome.storage.onChanged` listener (area `sync`): on a folders-key change while sync is enabled it writes the value into local, reloads `folderData`, and re-renders (honoring the active search query). A JSON-equality loop guard ignores echoes of our own write; non-sync areas and the disabled state are ignored.
+- Enabling sync migrates the current local folders up to sync (first write through `writeFoldersToSync`); disabling just stops mirroring. Conflict policy is last-write-wins via onChanged; CRDT/merge deferred. Import still routes through `saveFolders` so it propagates to sync when enabled. All existing features (colors/icons, import/export, search) untouched.
+- Note: this entry's original "merge fix" bullet referred to the same `renderSidebar` botched-merge documented in the 2026-06-27 entry above; the reconciliation now lives on `main`.
+- Tested: `node --check` on all JS + manifest JSON parse (pass); headless Chromium load via Playwright (MV3 service worker registers, no page/load errors); a Node unit harness mocking `chrome.storage.local`/`.sync`/`.onChanged`/`runtime.lastError` — 16/16 assertions pass (sync OFF → local only; sync ON → mirrors to sync; quota error degrades to local-only without throwing; onChanged from `sync` updates local + re-renders; loop guard / non-sync area / disabled all ignored). Real multi-device propagation is browser-gated.
 
 ### 2026-06-26 — Search and filter within folders (ADR-0005)
 - Added a debounced (~180ms) `<input type="search">` with a clear ("×") button to the sidebar header, styled to the dark violet theme in `content.css`.

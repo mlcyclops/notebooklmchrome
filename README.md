@@ -33,6 +33,7 @@ automations, and experiments.
 - 🌳 **Nested tree** — folders inside folders, as deep as you need.
 - 🖱️ **Drag &amp; drop** — move notebooks between folders with a simple drag.
 - 💾 **Persistent** — your structure is saved to `chrome.storage.local` and survives restarts.
+- 🔄 **Cross-device sync** *(optional)* — opt in to sync your folders across your signed-in Chrome devices via `chrome.storage.sync`. No account or server of ours; off by default. Very large folder sets that exceed Chrome's sync quota stay local-only with a clear notice.
 - ⚡ **Zero setup** — no build tooling, no bundler, no sign-in. Load unpacked and you're done.
 - 🔌 **Optional programmatic API** *(advanced)* — a local Node server + WebSocket bridge for
   listing notebooks, streaming chat over SSE, and triggering product generation.
@@ -162,7 +163,7 @@ npm start
 - [ ] Folder colors &amp; icons
 - [ ] Import / export folder structures (JSON)
 - [ ] Search and filter within folders
-- [ ] Sync folders across devices
+- [x] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
 

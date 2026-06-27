@@ -27,6 +27,19 @@ let rpcReqId = Math.floor(1e5 + Math.random() * 9e5);
 
 const STORAGE_KEY = 'nlm_folders';
 
+// Opt-in cross-device sync (ADR-0006). When enabled, folder writes are mirrored
+// into chrome.storage.sync (which Chrome replicates across the user's signed-in
+// devices) and remote edits flow back via a storage.onChanged listener.
+// chrome.storage.local remains the always-present render source; this flag,
+// persisted in chrome.storage.local, defaults OFF so existing behavior is
+// unchanged until the user opts in.
+const SYNC_ENABLED_KEY = 'nlm_sync_enabled';
+
+// In-memory mirror of the sync-enabled setting so synchronous code paths
+// (writes, onChanged guard) can consult it without an async storage round-trip.
+// Hydrated once at init from chrome.storage.local and kept current on toggle.
+let syncEnabled = false;
+
 // Curated, dependency-free presets for folder customization (ADR-0003).
 // These are allow-lists: any color/icon placed into markup or an inline style
 // MUST be one of these values. Anything else falls back to the defaults below,
@@ -180,9 +193,17 @@ if (document.readyState === 'loading') {
 function init() {
   console.log('NotebookLM Folderizer Content Script Initialized');
   
+  // Hydrate the opt-in sync flag (ADR-0006) BEFORE injecting the sidebar so the
+  // toggle renders in the right state, then register the cross-device listener.
+  readSyncEnabled().then((enabled) => {
+    syncEnabled = enabled;
+    updateSyncToggleUI();
+  });
+  registerSyncListener();
+
   // Inject sidebar DOM
   injectSidebar();
-  
+
   // Connect check loop (updates connection status indicator)
   setInterval(checkServerStatus, 5000);
   checkServerStatus();
@@ -250,6 +271,12 @@ function injectSidebar() {
       </div>
       <input type="file" id="nlm-import-file-input" accept="application/json,.json" hidden />
       <div class="nlm-import-status" id="nlm-import-status" hidden></div>
+      <label class="nlm-sync-toggle" id="nlm-sync-toggle" title="Sync your folders across devices via Chrome (opt-in)">
+        <input type="checkbox" id="nlm-sync-checkbox" />
+        <span class="nlm-sync-track"><span class="nlm-sync-thumb"></span></span>
+        <span class="nlm-sync-label">Sync across devices</span>
+      </label>
+      <div class="nlm-sync-status" id="nlm-sync-status-line" hidden></div>
       <div class="nlm-search-row">
         <span class="nlm-search-icon">🔍</span>
         <input type="search" id="nlm-search-input" class="nlm-search-input" placeholder="Search folders & notebooks" autocomplete="off" spellcheck="false" />
@@ -340,6 +367,16 @@ function injectSidebar() {
     searchInput.focus();
   });
 
+  // Cross-device sync toggle (ADR-0006). Opt-in; persisted in
+  // chrome.storage.local. Reflect the current flag, then handle changes.
+  const syncCheckbox = document.getElementById('nlm-sync-checkbox');
+  if (syncCheckbox) {
+    syncCheckbox.checked = syncEnabled;
+    syncCheckbox.addEventListener('change', () => {
+      handleSyncToggle(syncCheckbox.checked);
+    });
+  }
+
   // Setup Global Document Clicks for Dropdowns
   document.addEventListener('click', (e) => {
     // Keep an open popover alive if the click lands on its trigger area
@@ -416,18 +453,208 @@ function readFoldersFromStorage() {
   });
 }
 
+// Persist folder data. Local is ALWAYS written first (offline source of truth).
+// When opt-in sync is enabled (ADR-0006), the same value is ALSO mirrored to
+// chrome.storage.sync; a quota/error there degrades to local-only via
+// `handleSyncDegradation` and is reported in the resolved value — it never
+// throws and never loses the local copy.
 function writeFoldersToStorage(data) {
   return new Promise((resolve) => {
+    const finishLocal = () => {
+      if (!syncEnabled) {
+        resolve({ synced: false });
+        return;
+      }
+      writeFoldersToSync(data).then((res) => {
+        if (res.ok) {
+          resolve({ synced: true });
+        } else {
+          handleSyncDegradation(res.reason);
+          resolve({ synced: false, syncError: res.reason });
+        }
+      });
+    };
     try {
       chrome.storage.local.set({ [STORAGE_KEY]: data }, () => {
         if (chrome.runtime.lastError) {
           console.warn('NotebookLM Folderizer: storage write failed:', chrome.runtime.lastError.message);
         }
-        resolve();
+        finishLocal();
       });
     } catch (e) {
       console.warn('NotebookLM Folderizer: storage write unavailable:', e.message);
+      // Local failed, but still attempt sync mirroring per the same policy.
+      finishLocal();
+    }
+  });
+}
+
+// A sync write failed (quota or otherwise): keep local data, stop syncing, flip
+// the opt-in flag back OFF, and surface a calm, non-blocking status. No throw,
+// no data loss.
+function handleSyncDegradation(reason) {
+  syncEnabled = false;
+  writeSyncEnabled(false);
+  updateSyncToggleUI();
+  setSyncStatus('Folder set too large to sync — kept locally', 'error');
+  console.warn('NotebookLM Folderizer: sync disabled (degraded to local-only):', reason);
+}
+
+// Show/clear the small sync status line under the toggle. kind is 'error' |
+// 'info' | '' (clear). Plain textContent — never innerHTML — so it is
+// injection-safe by construction.
+function setSyncStatus(message, kind) {
+  const el = document.getElementById('nlm-sync-status-line');
+  if (!el) return;
+  if (!message) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('nlm-sync-status-error', 'nlm-sync-status-info');
+    return;
+  }
+  el.textContent = message;
+  el.hidden = false;
+  el.classList.toggle('nlm-sync-status-error', kind === 'error');
+  el.classList.toggle('nlm-sync-status-info', kind === 'info');
+}
+
+// Keep the checkbox in sync with the in-memory flag (used after a degrade).
+function updateSyncToggleUI() {
+  const cb = document.getElementById('nlm-sync-checkbox');
+  if (cb) cb.checked = syncEnabled;
+}
+
+// User flipped the toggle. Persist the flag; on ON, migrate the current local
+// folders up to chrome.storage.sync (first write) — if that fails on quota,
+// revert to OFF with the degraded message. On OFF, just stop mirroring.
+async function handleSyncToggle(enabled) {
+  if (enabled) {
+    // Optimistically reflect intent, then attempt the migrating write.
+    syncEnabled = true;
+    await writeSyncEnabled(true);
+    const normalized = normalizeFolderData(folderData);
+    const res = await writeFoldersToSync(normalized);
+    if (res.ok) {
+      setSyncStatus('Syncing across your devices', 'info');
+    } else {
+      // writeFoldersToSync already logged; degrade cleanly and revert toggle.
+      handleSyncDegradation(res.reason);
+    }
+  } else {
+    syncEnabled = false;
+    await writeSyncEnabled(false);
+    updateSyncToggleUI();
+    setSyncStatus('', '');
+  }
+}
+
+// Pull a remote folder update (from another device) into local + memory and
+// re-render. Called by the storage.onChanged listener for area 'sync'.
+async function applyRemoteFolders(remote) {
+  const normalized = normalizeFolderData(remote);
+  // Write straight to local (the render source) — do NOT route through
+  // writeFoldersToStorage, which would mirror back to sync and risk a loop.
+  await new Promise((resolve) => {
+    try {
+      chrome.storage.local.set({ [STORAGE_KEY]: normalized }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('NotebookLM Folderizer: remote-apply local write failed:', chrome.runtime.lastError.message);
+        }
+        resolve();
+      });
+    } catch (e) {
+      console.warn('NotebookLM Folderizer: remote-apply local write unavailable:', e.message);
       resolve();
+    }
+  });
+  folderData = normalized;
+  renderSidebar(); // honors the active searchQuery via renderSidebar()
+}
+
+// Register the cross-device listener once. Reacts only to chrome.storage.sync
+// changes to the folders key, and only while sync is enabled. Guards against
+// feedback loops by ignoring a payload equal to what we already hold.
+function registerSyncListener() {
+  try {
+    if (!chrome.storage || !chrome.storage.onChanged) return;
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync') return;
+      if (!syncEnabled) return;
+      if (!changes || !changes[STORAGE_KEY]) return;
+      const remote = changes[STORAGE_KEY].newValue;
+      if (!remote || !Array.isArray(remote.folders)) return;
+      // Loop guard: if the incoming value matches our current data, ignore it.
+      try {
+        if (JSON.stringify(remote) === JSON.stringify(folderData)) return;
+      } catch (e) { /* fall through and apply */ }
+      applyRemoteFolders(remote);
+    });
+  } catch (e) {
+    console.warn('NotebookLM Folderizer: could not register sync listener:', e.message);
+  }
+}
+
+// -------------------------------------------------------------
+// CROSS-DEVICE SYNC (ADR-0006) — opt-in, chrome.storage.sync
+// -------------------------------------------------------------
+
+// Read the persisted opt-in flag from chrome.storage.local. Defaults to false
+// so a fresh/never-toggled profile behaves exactly as before.
+function readSyncEnabled() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get([SYNC_ENABLED_KEY], (result) => {
+        if (chrome.runtime.lastError) {
+          console.warn('NotebookLM Folderizer: sync-flag read failed:', chrome.runtime.lastError.message);
+          resolve(false);
+          return;
+        }
+        resolve(!!(result && result[SYNC_ENABLED_KEY]));
+      });
+    } catch (e) {
+      console.warn('NotebookLM Folderizer: sync-flag read unavailable:', e.message);
+      resolve(false);
+    }
+  });
+}
+
+// Persist the opt-in flag to chrome.storage.local. Never throws into the page.
+function writeSyncEnabled(enabled) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.set({ [SYNC_ENABLED_KEY]: !!enabled }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('NotebookLM Folderizer: sync-flag write failed:', chrome.runtime.lastError.message);
+        }
+        resolve();
+      });
+    } catch (e) {
+      console.warn('NotebookLM Folderizer: sync-flag write unavailable:', e.message);
+      resolve();
+    }
+  });
+}
+
+// Mirror the folder data into chrome.storage.sync. Resolves with
+// { ok: true } on success or { ok: false, reason } on any quota/error so the
+// caller can degrade to local-only. NEVER throws into the page and NEVER
+// touches local data — local has already been written by writeFoldersToStorage.
+function writeFoldersToSync(data) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.sync.set({ [STORAGE_KEY]: data }, () => {
+        const err = chrome.runtime.lastError;
+        if (err) {
+          console.warn('NotebookLM Folderizer: sync write failed:', err.message);
+          resolve({ ok: false, reason: err.message || 'sync write failed' });
+          return;
+        }
+        resolve({ ok: true });
+      });
+    } catch (e) {
+      // Some Chrome builds throw synchronously on QUOTA_BYTES_PER_ITEM_EXCEEDED.
+      console.warn('NotebookLM Folderizer: sync write threw:', e.message);
+      resolve({ ok: false, reason: e.message || 'sync write threw' });
     }
   });
 }

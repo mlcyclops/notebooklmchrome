@@ -25,4 +25,5 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0003 | [Folder colors and icons](0003-folder-colors-and-icons.md)                              | Accepted | 2026-06-26 |
 | 0004 | [Import / export folder structures (JSON)](0004-import-export-folder-structures.md)     | Accepted | 2026-06-26 |
 | 0005 | [Search and filter within folders](0005-search-and-filter-within-folders.md)            | Accepted | 2026-06-26 |
+| 0006 | [Sync folders across devices](0006-sync-folders-across-devices.md)                       | Accepted | 2026-06-26 |
 | 0008 | [Premium UI/UX redesign and trustworthy notebook states](0008-premium-ui-ux-and-trustworthy-notebook-states.md) | Accepted | 2026-06-26 |
