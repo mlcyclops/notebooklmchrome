@@ -49,12 +49,23 @@ function connect() {
       // Find any NotebookLM tabs
       chrome.tabs.query({ url: "https://notebooklm.google.com/*" }, (tabs) => {
         if (tabs && tabs.length > 0) {
-          // Prefer active/selected tab, fallback to first
-          const targetTab = tabs.find(t => t.active) || tabs[0];
-          chrome.tabs.sendMessage(targetTab.id, message, (response) => {
-            // Check for errors sending message (e.g. content script not fully loaded yet)
-            if (chrome.runtime.lastError) {
-              console.warn('Could not communicate with tab content script:', chrome.runtime.lastError.message);
+          // Prefer a NotebookLM tab that is loaded (status === 'complete') and
+          // active; fall back to any loaded one, then to the first tab.
+          const targetTab =
+            tabs.find(t => t.active && t.status === 'complete') ||
+            tabs.find(t => t.status === 'complete') ||
+            tabs.find(t => t.active) ||
+            tabs[0];
+          chrome.tabs.sendMessage(targetTab.id, message, () => {
+            // The content script answers asynchronously via chrome.runtime.sendMessage
+            // (its listener returns false), which legitimately produces
+            // "The message port closed before a response was received." That is NOT a
+            // failure, so ignore it and let the real reply arrive. Only report an
+            // error when there is genuinely no content script to receive the message.
+            const err = chrome.runtime.lastError;
+            if (!err) return;
+            if (/Receiving end does not exist|Could not establish connection/i.test(err.message)) {
+              console.warn('No content script in NotebookLM tab:', err.message);
               if (message.id) {
                 ws.send(JSON.stringify({
                   id: message.id,

@@ -14,7 +14,7 @@
     "dist:mac": "electron-builder --mac",
     "check": "node --check server.js && node --check test-api.js && node --check extension/content.js && node --check extension/background.js && node --check desktop/main.js",
     "package": "node tools/package-extension.js",
-    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js && node tests/desktop.test.js && node tests/folders-live.test.js"
+    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js && node tests/desktop.test.js && node tests/folders-live.test.js && node tests/relay.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

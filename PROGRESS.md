@@ -37,6 +37,12 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Fix relay async-ack race; live-verified end to end (ADR-0018)
+- Live test with the user's real browser surfaced that server-driven `/api/notebooks` and live folders always returned "NotebookLM tab is loading" even with the extension connected. Root cause: `background.js` treated the `tabs.sendMessage` callback's `lastError` ("message port closed before a response was received", the normal result of the content script replying asynchronously) as fatal and sent an error that resolved the pending request before the real reply arrived.
+- Fix: ignore the "message port closed" ack; only report "tab is loading" when `lastError` indicates no receiver ("Receiving end does not exist"). Also prefer a `status === 'complete'` NotebookLM tab.
+- **Verified live**: after reloading the extension (fixed background.js) + the NotebookLM tab, the server returned the real library: **175 notebooks, 7 folders** (AI Agents 13, Agent Security 10, Military 6, Cloud and Dev 5, Side Biz 4, Compliance 3, Kids 1).
+- Regression test `tests/relay.test.js` (3/3) loads the real `background.js` in a vm and asserts: port-closed ack sends no error, missing receiver reports "tab is loading", clean ack sends nothing. Suite now 11 suites.
+
 ### 2026-06-27 — Desktop connectivity + live folders from the extension (ADR-0017)
 - User reported the installed desktop app showed "No extension" and an empty library despite having notebooks/folders. Root causes + fixes:
   - **Atlas read folders from server-side `folders.json`, not the extension.** Added a `list_folders` relay in `content.js` (returns `chrome.storage.local` folders); server `getFoldersLive()` + `getFolders()` prefer live extension folders and fall back to `folders.json`. `GET /api/folders`, `/api/graph`, and the automation snapshot all use it. Now Atlas shows the user's real folders once connected.
