@@ -77,9 +77,17 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'extension', 'content.js'
 vm.createContext(sandbox);
 vm.runInContext(src, sandbox, { filename: 'content.js' });
 
-const { resolveElement, resolveAllElements, waitForElement, waitForStableText } = sandbox;
+const { resolveElement, resolveAllElements, waitForElement, waitForStableText, foldersForRelay } = sandbox;
 
 (async () => {
+  // ---- foldersForRelay (list_folders shape handling) ------------------
+  // Storage holds { folders: [...] }; the relay must return the array, not [].
+  check('foldersForRelay unwraps the stored { folders: [...] } object',
+    foldersForRelay({ folders: [{ id: 'a' }, { id: 'b' }] }).length === 2);
+  check('foldersForRelay tolerates a bare array', foldersForRelay([{ id: 'a' }]).length === 1);
+  check('foldersForRelay returns [] for null / empty (no injected defaults)',
+    foldersForRelay(null).length === 0 && foldersForRelay({}).length === 0);
+
   // ---- resolveElement -------------------------------------------------
   // Priority: first two strategies miss, 'textarea' (3rd) hits → returns it.
   const textarea = makeEl('', { });
