@@ -121,6 +121,7 @@ Keep at least one NotebookLM tab open so the extension can service requests.
 | `GET /api/notebooks` | List the user's notebooks (driven via the extension). |
 | `POST /api/notebooks/:id/chat` | Chat with a notebook. Streams the reply as **SSE** (`text/event-stream`). Body: `{ "prompt": "..." }`. |
 | `POST /api/notebooks/:id/generate-product` | Trigger a generated product (e.g. `study-guide`, `briefing-doc`, `faq`, `timeline`). Body: `{ "format": "..." }`. |
+| `GET /api/graph` | Export the whole library as a knowledge graph. JSON by default; `?format=graphml` returns GraphML (yEd / Gephi / Cytoscape). Built from `folders.json` plus live notebooks when the extension is connected. |
 
 A small CLI helper, **`test-api.js`**, exercises these endpoints:
 
@@ -130,6 +131,8 @@ node test-api.js folders
 node test-api.js notebooks
 node test-api.js chat <notebook_id> "Summarize the key points"
 node test-api.js generate <notebook_id> study-guide
+node test-api.js graph                 # knowledge graph as JSON
+node test-api.js graph graphml         # knowledge graph as GraphML
 ```
 
 > ⚠️ **Experimental.** The chat and product-generation endpoints automate NotebookLM's web
@@ -205,12 +208,12 @@ npm start
 - [x] Search and filter within folders
 - [x] Sync folders across devices
 - [x] Premium UI/UX redesign with trustworthy loading / empty / error states
+- [x] Harden the experimental chat / generate automation against UI changes
+- [x] Export the knowledge graph (folders + notebooks + cross-links) as JSON / GraphML
 
 **Next**
 
-- [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
-- [ ] Export the knowledge graph (folders + notebooks + cross-links) as JSON / GraphML
 - [ ] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
 - [ ] **Research / study packs**: cross-notebook study guides, briefings, flashcards, and timelines, generated on a schedule
 - [ ] **Watch mode**: regenerate products automatically when a folder's sources change

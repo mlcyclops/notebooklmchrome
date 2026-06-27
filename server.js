@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
+const { buildGraph, toJSON, toGraphML } = require('./lib/knowledge-graph');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -191,6 +192,52 @@ app.post('/api/notebooks/:id/generate-product', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Export the whole library as a knowledge graph (ADR-0011).
+// Folders come from folders.json; notebooks are fetched live from the extension
+// when one is connected, otherwise the graph is built from the folder structure
+// alone (folder-referenced notebooks still appear as nodes). Use
+// `?format=graphml` for GraphML (yEd / Gephi / Cytoscape), default is JSON.
+app.get('/api/graph', (req, res) => {
+  const dbPath = path.join(__dirname, 'folders.json');
+
+  const readFolders = () => new Promise((resolve) => {
+    fs.readFile(dbPath, 'utf8', (err, data) => {
+      if (err) return resolve([]); // no folders.json yet => empty structure
+      try {
+        const parsed = JSON.parse(data);
+        resolve(Array.isArray(parsed.folders) ? parsed.folders : []);
+      } catch (e) { resolve([]); }
+    });
+  });
+
+  const readNotebooks = async () => {
+    try {
+      const resp = await sendRequestToExtension('list_notebooks', {});
+      if (Array.isArray(resp)) return resp;
+      if (resp && Array.isArray(resp.notebooks)) return resp.notebooks;
+      return [];
+    } catch (e) {
+      return []; // extension offline: build from folders alone
+    }
+  };
+
+  Promise.all([readFolders(), readNotebooks()]).then(([folders, notebooks]) => {
+    const graph = buildGraph({ folders, notebooks });
+    const meta = { generatedAt: new Date().toISOString() };
+    const format = String(req.query.format || '').toLowerCase();
+
+    if (format === 'graphml' || format === 'xml') {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="knowledge-graph.graphml"');
+      return res.send(toGraphML(graph, meta));
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.send(toJSON(graph, meta));
+  }).catch((err) => {
+    res.status(500).json({ error: err.message });
+  });
 });
 
 // Fallback status check endpoint

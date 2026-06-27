@@ -154,6 +154,20 @@ async function runTests() {
         await streamChat(notebookId, prompt);
         break;
 
+      case 'graph': {
+        const fmt = (args[1] || 'json').toLowerCase();
+        const isGraphml = fmt === 'graphml' || fmt === 'xml';
+        console.log(`Exporting knowledge graph (${isGraphml ? 'GraphML' : 'JSON'})...`);
+        const graph = await makeRequest(`/api/graph${isGraphml ? '?format=graphml' : ''}`);
+        if (isGraphml) {
+          console.log(typeof graph === 'string' ? graph : JSON.stringify(graph));
+        } else {
+          console.log(`Nodes: ${graph.counts.nodes} (folders ${graph.counts.folders}, notebooks ${graph.counts.notebooks}), Edges: ${graph.counts.edges}`);
+          console.log(JSON.stringify(graph, null, 2));
+        }
+        break;
+      }
+
       case 'generate':
         const nbId = args[1];
         const format = args[2]; // e.g. study-guide
@@ -175,6 +189,7 @@ async function runTests() {
         console.log('  node test-api.js notebooks               - List user\'s active notebooks (via extension)');
         console.log('  node test-api.js chat <id> "<prompt>"    - Stream real-time chat with notebook agent');
         console.log('  node test-api.js generate <id> <format>  - Trigger guide product generation (study-guide, briefing-doc, etc.)');
+        console.log('  node test-api.js graph [graphml]         - Export the library as a knowledge graph (JSON, or GraphML)');
         break;
     }
   } catch (err) {
