@@ -74,7 +74,17 @@ function readZip(buf) {
 const zipBuf = fs.readFileSync(path.join(ROOT, 'dist', 'firefox.zip'));
 check('firefox.zip starts with PK local-file signature', zipBuf.readUInt32LE(0) === 0x04034b50);
 const entries = readZip(zipBuf);
-check('firefox.zip central directory lists 4 entries', entries.length === 4);
+// Count the real source files (recursively) so this stays correct as files are added.
+function countFiles(dir) {
+  return fs.readdirSync(dir).reduce((n, e) => {
+    const abs = path.join(dir, e);
+    return n + (fs.statSync(abs).isDirectory() ? countFiles(abs) : 1);
+  }, 0);
+}
+const expected = countFiles(path.join(ROOT, 'extension'));
+check('firefox.zip lists every extension file', entries.length === expected && expected >= 4);
+check('the manifest icons are bundled (subfolders preserved)',
+  entries.some(e => e.name === 'icons/icon128.png'));
 check('firefox.zip every stored entry passes a CRC32 round-trip',
   entries.every(e => crc32(e.data) === e.crc));
 const zipManifest = entries.find(e => e.name === 'manifest.json');
