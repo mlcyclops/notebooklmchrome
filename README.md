@@ -40,7 +40,7 @@ companion server, now also packaged as a one-click **desktop app**.
 | You want... | Do this |
 | --- | --- |
 | 📁 **Folders in NotebookLM** | Load the extension. 30 seconds, no Node. See [Install in Chrome](#-install-in-chrome-the-easy-way). |
-| 🧭 **Atlas Studio + automation, the easy way** (Windows) | Double-click **`run.bat`** and pick from the menu, or install the **[Atlas Studio desktop app](#-desktop-app-atlas-studio)**. One double-click, no terminal. |
+| 🧭 **Atlas Studio + automation**<br>(any OS, one double-click) | **Download the desktop app** (companion server + Atlas, bundled), then run it. No Node, npm, or terminal:<br>[⬇ Windows `.exe`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-Setup-1.0.0.exe) · [⬇ macOS `.dmg`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0-arm64.dmg) (Apple Silicon) · [⬇ Linux `.AppImage`](https://github.com/mlcyclops/notebooklmchrome/releases/download/v1.0.0/Atlas-Studio-1.0.0.AppImage)<br>On Windows you can instead double-click **`run.bat`** for a guided menu. Want to build it yourself? See the [desktop app section](#-desktop-app-atlas-studio). |
 | 💻 **Prefer the terminal** | `npm install && npm start`, then open **http://localhost:3000/atlas**. |
 
 > You still load the browser extension to organize notebooks and to give the studio
