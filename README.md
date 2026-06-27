@@ -5,7 +5,7 @@
 # NotebookLM Folderizer &amp; Connector
 
 **Bring real folders, nesting, and drag-and-drop to [Google NotebookLM](https://notebooklm.google.com).**
-No build step. No account. No server required — just *Load unpacked* and go.
+No build step. No account. No server required. Just *Load unpacked* and go.
 
 [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Made with JavaScript](https://img.shields.io/badge/Made%20with-JavaScript-f7df1e?logo=javascript&logoColor=black)](#)
@@ -18,25 +18,48 @@ No build step. No account. No server required — just *Load unpacked* and go.
 
 ## Why?
 
-NotebookLM is fantastic for thinking with your sources — but once you have more than a
-handful of notebooks, the flat list becomes a maze. **Folderizer** adds the one thing
+NotebookLM is fantastic for thinking with your sources, but once you have more than a
+handful of notebooks the flat list becomes a maze. **Folderizer** adds the one thing
 that has always been missing: a real, nested folder structure you can drag notebooks into,
 right inside the NotebookLM UI. Everything lives in your browser and persists across sessions.
 
-For tinkerers, there's also an **optional companion server** that exposes a small
-programmatic API (HTTP + Server-Sent Events) by driving the extension — handy for scripts,
-automations, and experiments.
+For tinkerers, there is also an **optional companion server** that exposes a small
+programmatic API (HTTP + Server-Sent Events) by driving the extension. It is handy for scripts,
+automations, and experiments, and it lets you treat your whole library as a
+[personal knowledge graph](#-use-it-as-a-personal-knowledge-graph).
 
 ## ✨ Features
 
-- 📁 **Custom folders** — group your notebooks however you like, directly in the NotebookLM sidebar.
-- 🌳 **Nested tree** — folders inside folders, as deep as you need.
-- 🖱️ **Drag &amp; drop** — move notebooks between folders with a simple drag.
-- 💾 **Persistent** — your structure is saved to `chrome.storage.local` and survives restarts.
-- 🔄 **Cross-device sync** *(optional)* — opt in to sync your folders across your signed-in Chrome devices via `chrome.storage.sync`. No account or server of ours; off by default. Very large folder sets that exceed Chrome's sync quota stay local-only with a clear notice.
-- ⚡ **Zero setup** — no build tooling, no bundler, no sign-in. Load unpacked and you're done.
-- 🔌 **Optional programmatic API** *(advanced)* — a local Node server + WebSocket bridge for
-  listing notebooks, streaming chat over SSE, and triggering product generation.
+<table>
+  <tr>
+    <td width="56" align="center"><img src="assets/icons/folders.svg" width="40" height="40" alt=""/></td>
+    <td><b>Custom folders.</b> Group your notebooks however you like, directly in the NotebookLM sidebar.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/tree.svg" width="40" height="40" alt=""/></td>
+    <td><b>Nested tree.</b> Folders inside folders, as deep as you need, with accordion collapse.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/drag.svg" width="40" height="40" alt=""/></td>
+    <td><b>Drag &amp; drop.</b> Move notebooks between folders with a simple drag.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/persist.svg" width="40" height="40" alt=""/></td>
+    <td><b>Persistent.</b> Your structure is saved to <code>chrome.storage.local</code> and survives restarts.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/sync.svg" width="40" height="40" alt=""/></td>
+    <td><b>Cross-device sync</b> <i>(optional)</i>. Opt in to sync your folders across your signed-in Chrome devices via <code>chrome.storage.sync</code>. No account or server of ours; off by default. Very large folder sets that exceed Chrome's sync quota stay local-only with a clear notice.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/bolt.svg" width="40" height="40" alt=""/></td>
+    <td><b>Zero setup.</b> No build tooling, no bundler, no sign-in. Load unpacked and you are done.</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/icons/api.svg" width="40" height="40" alt=""/></td>
+    <td><b>Optional programmatic API</b> <i>(advanced)</i>. A local Node server + WebSocket bridge for listing notebooks, streaming chat over SSE, and triggering product generation.</td>
+  </tr>
+</table>
 
 > The folder organizer is the headline feature and works **completely standalone**.
 > The companion server is a separate, optional power-user add-on.
@@ -45,13 +68,11 @@ automations, and experiments.
 
 <div align="center">
 
-<a href="assets/folders-screenshot.png">
-  <img src="assets/folders-screenshot.png" width="820" alt="The Folderizer sidebar inside NotebookLM: nested, collapsible folders with custom colors and icons, drag-and-drop, a search box, and an Unorganized Notebooks list" />
-</a>
+<img src="assets/folders-hero.svg" width="900" alt="The Folderizer sidebar inside NotebookLM: nested, collapsible folders with custom colors and icons, drag-and-drop, a search box, and an Unorganized Notebooks list" />
 
 <br /><br />
 
-<sub><b>Nested, collapsible folders</b> with custom colors &amp; icons · <b>drag-and-drop</b> · <b>live search</b> · an <b>Unorganized Notebooks</b> list — all inside the NotebookLM UI.</sub>
+<sub><b>Nested, collapsible folders</b> with custom colors &amp; icons · <b>drag-and-drop</b> · <b>live search</b> · an <b>Unorganized Notebooks</b> list, all inside the NotebookLM UI.</sub>
 
 </div>
 
@@ -66,7 +87,7 @@ No build step. No server. Just load the extension folder:
 5. Open **[notebooklm.google.com](https://notebooklm.google.com)**.
 6. Use the **Folderizer sidebar** to create folders and drag your notebooks in. 🎉
 
-That's it — your folders are stored locally in your browser and persist automatically.
+That is it. Your folders are stored locally in your browser and persist automatically.
 
 ## 🧰 Optional: Companion Server (power users)
 
@@ -115,8 +136,23 @@ node test-api.js generate <notebook_id> study-guide
 > UI on a best-effort basis. Google's interface changes over time, so treat these as
 > experimental and expect occasional breakage. The folder organizer is unaffected by this.
 
-A starter folder layout is provided in **`folders.example.json`** — copy it to `folders.json`
+A starter folder layout is provided in **`folders.example.json`**. Copy it to `folders.json`
 if you want the server to seed an initial structure (the live `folders.json` is git-ignored).
+
+### 🕸️ Use it as a personal knowledge graph
+
+Your folders already describe a graph: folders are nodes, notebooks are leaves, and shared
+sources or topics are the edges between them. With the companion server you can read that
+structure programmatically (`/api/folders`, `/api/notebooks`), query any notebook
+(`/chat`), and generate material across the whole library (`/generate-product`). That turns
+NotebookLM into a queryable, automatable knowledge base for study packs, briefings, and
+podcasts.
+
+<div align="center">
+
+<img src="assets/knowledge-graph-infographic.svg" width="960" alt="A four-step pipeline (Capture, Organize, Connect, Create) showing how the companion server turns folderized notebooks into a personal knowledge graph you can query like a database and generate study guides, briefings, and podcasts from." />
+
+</div>
 
 ## 🏗️ Architecture
 
@@ -134,10 +170,10 @@ if you want the server to seed an initial structure (the live `folders.json` is 
    └──────────────┘              └────────────┘               └───────────────┘         └──────────────┘
 ```
 
-- **Extension (`extension/`)** — `manifest.json` (MV3), `content.js`/`content.css` render the
+- **Extension (`extension/`)**: `manifest.json` (MV3), plus `content.js`/`content.css` that render the
   folder sidebar on NotebookLM and persist to `chrome.storage.local`. `background.js` is the
   service worker that bridges to the optional server.
-- **Server (`server.js`)** — Express REST + an attached WebSocket server. It never talks to
+- **Server (`server.js`)**: Express REST + an attached WebSocket server. It never talks to
   Google directly; it relays requests to the extension and streams results back.
 
 ## 🛠️ Development
@@ -155,17 +191,51 @@ node --check server.js   # quick syntax check
 npm start
 ```
 
-- Extension code lives in `extension/` (no bundler — edit and reload).
+- Extension code lives in `extension/` (no bundler; edit and reload).
 - Server code is `server.js`; the API smoke-test client is `test-api.js`.
+- Brand assets and figures live in `assets/`. Regenerate the framed hero image with
+  `node tools/build-hero.js` after replacing `assets/folders-screenshot.png`.
 
 ## 🗺️ Roadmap
 
-- [ ] Folder colors &amp; icons
-- [ ] Import / export folder structures (JSON)
-- [ ] Search and filter within folders
+**Shipped**
+
+- [x] Folder colors &amp; icons
+- [x] Import / export folder structures (JSON)
+- [x] Search and filter within folders
 - [x] Sync folders across devices
+- [x] Premium UI/UX redesign with trustworthy loading / empty / error states
+
+**Next**
+
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
+- [ ] Export the knowledge graph (folders + notebooks + cross-links) as JSON / GraphML
+- [ ] Automated **podcast pipeline**: turn a folder into a narrated, multi-episode series via `generate-product`
+- [ ] **Research / study packs**: cross-notebook study guides, briefings, flashcards, and timelines, generated on a schedule
+- [ ] **Watch mode**: regenerate products automatically when a folder's sources change
+- [ ] 🧭 **Atlas** (flagship next build): a Research &amp; Podcast Studio app on top of the server (see below)
+
+## 🧭 Up next: Atlas, a Research &amp; Podcast Studio
+
+**Atlas** is the next application we plan to build on top of the companion server. It treats
+your folderized notebooks as a knowledge graph and turns them into finished material:
+pick a folder and Atlas drafts a narrated, multi-episode **podcast series**, plus a matching
+**study pack** (study guide, flashcards, quiz, briefing, timeline). Automations keep it fresh:
+when a notebook lands in a folder, Atlas drafts the next episode and rebuilds the study pack.
+
+It is entirely powered by the API above. No new access to Google is required; Atlas only talks
+to `localhost:3000`.
+
+<div align="center">
+
+<img src="assets/app-atlas-concept.svg" width="960" alt="Concept mockup of Atlas, a Research and Podcast Studio app: a left library and knowledge-graph rail, a center Podcast Studio with a featured episode generated from a folder and an episode queue showing Ready / Generating / Queued states, and a right Study Pack panel with a study guide, flashcards, and a generate button, all connected to localhost:3000." />
+
+<br />
+
+<sub><b>Concept.</b> Not yet built. Tracked as the flagship next item on the roadmap above.</sub>
+
+</div>
 
 ## 🤝 Contributing
 

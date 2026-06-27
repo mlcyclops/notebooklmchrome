@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 940" width="1440" height="940" role="img" aria-label="Using the companion server as a personal knowledge graph">
+  <defs>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e1b4b"/><stop offset="0.5" stop-color="#4c1d95"/><stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="vio" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="step" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f5f3ff"/>
+    </linearGradient>
+    <filter id="card" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#4c1d95" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="940" rx="28" fill="#f6f4ff"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1440" height="132" rx="28" fill="url(#hdr)"/>
+  <rect x="0" y="100" width="1440" height="32" fill="#7c3aed"/>
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <text x="56" y="62" fill="#ffffff" font-size="40" font-weight="800" letter-spacing="-0.5">Your NotebookLM, as a Personal Knowledge Graph</text>
+    <text x="56" y="100" fill="#ddd6fe" font-size="21" font-weight="500">Folderize your notebooks, expose them through the companion server, and query your whole library like a graph.</text>
+    <g transform="translate(1180,40)">
+      <rect x="0" y="0" width="204" height="52" rx="26" fill="#ffffff" fill-opacity="0.14"/>
+      <text x="102" y="33" fill="#ffffff" font-size="19" font-weight="700" text-anchor="middle">localhost:3000  ·  REST + SSE</text>
+    </g>
+  </g>
+
+  <!-- ===== Pipeline: 4 steps ===== -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <!-- Step 1 -->
+    <g transform="translate(48,176)">
+      <rect width="300" height="196" rx="18" fill="url(#step)" stroke="#e9e3ff" filter="url(#card)"/>
+      <circle cx="40" cy="40" r="19" fill="url(#vio)"/><text x="40" y="47" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">1</text>
+      <text x="74" y="46" fill="#1e1b4b" font-size="22" font-weight="800">Capture</text>
+      <!-- doc icons -->
+      <g transform="translate(36,74)">
+        <rect x="0" y="6" width="44" height="56" rx="6" fill="#ede9fe" stroke="#a78bfa"/><rect x="10" y="20" width="24" height="4" rx="2" fill="#a78bfa"/><rect x="10" y="30" width="24" height="4" rx="2" fill="#c4b5fd"/><rect x="10" y="40" width="16" height="4" rx="2" fill="#c4b5fd"/>
+        <rect x="36" y="0" width="44" height="56" rx="6" fill="#fff" stroke="#a78bfa"/>
+        <rect x="72" y="6" width="44" height="56" rx="6" fill="#f5f3ff" stroke="#c4b5fd"/>
+      </g>
+      <text x="24" y="166" fill="#4b5563" font-size="16">PDFs, docs, sites &amp; notes</text>
+      <text x="24" y="186" fill="#4b5563" font-size="16">become NotebookLM notebooks.</text>
+    </g>
+    <!-- Step 2 -->
+    <g transform="translate(396,176)">
+      <rect width="300" height="196" rx="18" fill="url(#step)" stroke="#e9e3ff" filter="url(#card)"/>
+      <circle cx="40" cy="40" r="19" fill="url(#vio)"/><text x="40" y="47" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">2</text>
+      <text x="74" y="46" fill="#1e1b4b" font-size="22" font-weight="800">Organize</text>
+      <!-- mini tree -->
+      <g transform="translate(40,78)" stroke="#a78bfa" stroke-width="2.4" fill="none" stroke-linecap="round">
+        <path d="M14 8 V54 M14 22 H44 M14 38 H44 M14 54 H44"/>
+      </g>
+      <g transform="translate(40,78)" fill="url(#vio)">
+        <rect x="0" y="0" width="28" height="16" rx="4"/><rect x="44" y="14" width="30" height="15" rx="4"/><rect x="44" y="30" width="30" height="15" rx="4"/><rect x="44" y="46" width="30" height="15" rx="4"/>
+      </g>
+      <text x="24" y="166" fill="#4b5563" font-size="16">Folderizer files them into a</text>
+      <text x="24" y="186" fill="#4b5563" font-size="16">nested taxonomy you control.</text>
+    </g>
+    <!-- Step 3 -->
+    <g transform="translate(744,176)">
+      <rect width="300" height="196" rx="18" fill="url(#step)" stroke="#e9e3ff" filter="url(#card)"/>
+      <circle cx="40" cy="40" r="19" fill="url(#vio)"/><text x="40" y="47" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">3</text>
+      <text x="74" y="46" fill="#1e1b4b" font-size="22" font-weight="800">Connect</text>
+      <!-- server stack -->
+      <g transform="translate(108,74)">
+        <rect x="0" y="0" width="84" height="22" rx="5" fill="url(#vio)"/><circle cx="14" cy="11" r="4" fill="#ede9fe"/>
+        <rect x="0" y="28" width="84" height="22" rx="5" fill="url(#vio)"/><circle cx="14" cy="39" r="4" fill="#ede9fe"/>
+        <rect x="0" y="56" width="84" height="22" rx="5" fill="#8b5cf6"/><circle cx="14" cy="67" r="4" fill="#ede9fe"/>
+      </g>
+      <text x="24" y="166" fill="#4b5563" font-size="16">The companion server exposes</text>
+      <text x="24" y="186" fill="#4b5563" font-size="16">them over a local HTTP API.</text>
+    </g>
+    <!-- Step 4 -->
+    <g transform="translate(1092,176)">
+      <rect width="300" height="196" rx="18" fill="url(#step)" stroke="#e9e3ff" filter="url(#card)"/>
+      <circle cx="40" cy="40" r="19" fill="url(#vio)"/><text x="40" y="47" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">4</text>
+      <text x="74" y="46" fill="#1e1b4b" font-size="22" font-weight="800">Create</text>
+      <!-- sparkle / output -->
+      <g transform="translate(120,72)">
+        <path d="M30 0 l6 18 18 6 -18 6 -6 18 -6 -18 -18 -6 18 -6 z" fill="url(#vio)"/>
+        <circle cx="6" cy="8" r="4" fill="#c4b5fd"/><circle cx="58" cy="52" r="5" fill="#a78bfa"/>
+      </g>
+      <text x="24" y="166" fill="#4b5563" font-size="16">Scripts generate study guides,</text>
+      <text x="24" y="186" fill="#4b5563" font-size="16">briefings &amp; podcasts on demand.</text>
+    </g>
+    <!-- arrows between steps -->
+    <g stroke="#7c3aed" stroke-width="3" marker-end="url(#arr)">
+      <line x1="352" y1="274" x2="392" y2="274"/>
+      <line x1="700" y1="274" x2="740" y2="274"/>
+      <line x1="1048" y1="274" x2="1088" y2="274"/>
+    </g>
+  </g>
+
+  <!-- ===== Graph panel ===== -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <rect x="48" y="408" width="640" height="476" rx="20" fill="#ffffff" stroke="#e9e3ff" filter="url(#card)"/>
+    <text x="80" y="456" fill="#1e1b4b" font-size="24" font-weight="800">The graph your folders already describe</text>
+    <text x="80" y="484" fill="#6b7280" font-size="16">Folders are nodes, notebooks are leaves, shared sources &amp; topics are edges.</text>
+
+    <!-- edges -->
+    <g stroke="#c4b5fd" stroke-width="2.5" fill="none">
+      <path d="M360 560 L190 640 M360 560 L360 660 M360 560 L540 640"/>
+      <path d="M190 640 L150 740 M190 640 L260 740"/>
+      <path d="M360 660 L330 760 M360 660 L430 760"/>
+      <path d="M540 640 L520 740 M540 640 L600 740"/>
+    </g>
+    <!-- cross-links (relationships) -->
+    <g stroke="#f472b6" stroke-width="2.2" stroke-dasharray="6 5" fill="none" opacity="0.85">
+      <path d="M260 740 Q300 700 330 760"/>
+      <path d="M430 760 Q480 700 520 740"/>
+    </g>
+    <!-- folder nodes -->
+    <g fill="url(#vio)" stroke="#6d28d9">
+      <rect x="338" y="540" width="44" height="34" rx="7"/>
+      <rect x="168" y="622" width="44" height="34" rx="7"/>
+      <rect x="338" y="642" width="44" height="34" rx="7"/>
+      <rect x="518" y="622" width="44" height="34" rx="7"/>
+    </g>
+    <!-- notebook leaf nodes -->
+    <g fill="#ffffff" stroke="#a78bfa" stroke-width="2.5">
+      <circle cx="150" cy="752" r="15"/><circle cx="260" cy="752" r="15"/>
+      <circle cx="330" cy="772" r="15"/><circle cx="430" cy="772" r="15"/>
+      <circle cx="520" cy="752" r="15"/><circle cx="600" cy="752" r="15"/>
+    </g>
+    <!-- legend -->
+    <g transform="translate(80,820)" font-size="15" fill="#4b5563">
+      <rect x="0" y="-12" width="18" height="14" rx="3" fill="url(#vio)"/><text x="26" y="0">Folder</text>
+      <circle cx="118" cy="-5" r="8" fill="#fff" stroke="#a78bfa" stroke-width="2.5"/><text x="134" y="0">Notebook</text>
+      <line x1="250" y1="-5" x2="280" y2="-5" stroke="#c4b5fd" stroke-width="2.5"/><text x="290" y="0">Contains</text>
+      <line x1="392" y1="-5" x2="422" y2="-5" stroke="#f472b6" stroke-width="2.2" stroke-dasharray="6 5"/><text x="432" y="0">Shared topic / source</text>
+    </g>
+  </g>
+
+  <!-- ===== Query / outputs panel ===== -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <rect x="716" y="408" width="676" height="476" rx="20" fill="#ffffff" stroke="#e9e3ff" filter="url(#card)"/>
+    <text x="748" y="456" fill="#1e1b4b" font-size="24" font-weight="800">Query it like a database</text>
+    <text x="748" y="484" fill="#6b7280" font-size="16">Drive every notebook from scripts. Stream answers; trigger generated products.</text>
+
+    <!-- code block -->
+    <rect x="748" y="506" width="612" height="186" rx="12" fill="#1e1b3a"/>
+    <g font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16.5">
+      <text x="772" y="540" fill="#c4b5fd">GET  <tspan fill="#a7f3d0">/api/notebooks</tspan>          <tspan fill="#6b7280"># the whole graph</tspan></text>
+      <text x="772" y="572" fill="#c4b5fd">GET  <tspan fill="#a7f3d0">/api/folders</tspan>            <tspan fill="#6b7280"># your taxonomy</tspan></text>
+      <text x="772" y="604" fill="#fbbf24">POST <tspan fill="#a7f3d0">/api/notebooks/:id/chat</tspan> <tspan fill="#6b7280"># ask → SSE</tspan></text>
+      <text x="772" y="636" fill="#fbbf24">POST <tspan fill="#a7f3d0">/.../generate-product</tspan>   <tspan fill="#6b7280"># build</tspan></text>
+      <text x="772" y="672" fill="#ddd6fe">$ node test-api.js chat &lt;id&gt; <tspan fill="#a7f3d0">"link these sources"</tspan></text>
+    </g>
+
+    <text x="748" y="732" fill="#1e1b4b" font-size="20" font-weight="800">Generate across the graph</text>
+    <!-- output chips -->
+    <g font-size="16" font-weight="600">
+      <g transform="translate(748,748)"><rect width="180" height="40" rx="20" fill="#ede9fe"/><text x="90" y="26" fill="#5b21b6" text-anchor="middle">📻 Audio / Podcast</text></g>
+      <g transform="translate(940,748)"><rect width="166" height="40" rx="20" fill="#ede9fe"/><text x="83" y="26" fill="#5b21b6" text-anchor="middle">📚 Study guide</text></g>
+      <g transform="translate(1118,748)"><rect width="170" height="40" rx="20" fill="#ede9fe"/><text x="85" y="26" fill="#5b21b6" text-anchor="middle">📝 Briefing doc</text></g>
+      <g transform="translate(748,798)"><rect width="140" height="40" rx="20" fill="#ede9fe"/><text x="70" y="26" fill="#5b21b6" text-anchor="middle">❓ FAQ</text></g>
+      <g transform="translate(900,798)"><rect width="150" height="40" rx="20" fill="#ede9fe"/><text x="75" y="26" fill="#5b21b6" text-anchor="middle">🗓 Timeline</text></g>
+      <g transform="translate(1062,798)"><rect width="166" height="40" rx="20" fill="#ede9fe"/><text x="83" y="26" fill="#5b21b6" text-anchor="middle">🃏 Flashcards</text></g>
+    </g>
+    <text x="748" y="864" fill="#6b7280" font-size="14.5">Chat &amp; generate automate the NotebookLM UI (best-effort); the folder graph works with or without them.</text>
+  </g>
+</svg>
