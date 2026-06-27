@@ -35,3 +35,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0014 | [Atlas, a Research & Podcast Studio on the companion server](0014-atlas-research-podcast-studio.md) | Accepted | 2026-06-26 |
 | 0015 | [Atlas Studio desktop app and one-click installers](0015-atlas-desktop-app-and-installers.md) | Accepted | 2026-06-27 |
 | 0016 | [Guided .bat launchers with menus and ASCII art](0016-guided-batch-launchers.md) | Accepted | 2026-06-27 |
+| 0017 | [Desktop connectivity and live folders from the extension](0017-desktop-connectivity-live-folders.md) | Accepted | 2026-06-27 |

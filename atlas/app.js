@@ -24,12 +24,24 @@
   function loadStatus() {
     api('/status').then(function (s) {
       var label = V.connectionLabel(s);
-      $('status-text').textContent = label + ' · localhost:3000';
+      $('status-text').textContent = label + ' · ' + location.host;
       $('status').classList.toggle('off', label !== 'Connected');
+      // When no extension is connected, the library/notebooks cannot load. Tell
+      // the user how to fix it instead of just showing an empty list.
+      if (label !== 'Connected' && !state.folders.length) showConnectHint();
     }).catch(function () {
       $('status-text').textContent = 'Server offline';
       $('status').classList.add('off');
     });
+  }
+
+  function showConnectHint() {
+    $('folders').innerHTML =
+      '<div class="empty-state">No extension connected.<br><br>' +
+      '1. Load the <b>Folderizer</b> extension in your browser ' +
+      '(<code>chrome://extensions</code> &rarr; Developer mode &rarr; Load unpacked &rarr; the <code>extension</code> folder).<br><br>' +
+      '2. Open <a href="https://notebooklm.google.com/" target="_blank" rel="noopener">notebooklm.google.com</a> and keep the tab open.<br><br>' +
+      'The extension connects on port <b>3000</b>, so this app must be the server running there. Then your folders and notebooks appear here.</div>';
   }
 
   // ---- library + folder select ----

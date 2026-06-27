@@ -37,6 +37,14 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Desktop connectivity + live folders from the extension (ADR-0017)
+- User reported the installed desktop app showed "No extension" and an empty library despite having notebooks/folders. Root causes + fixes:
+  - **Atlas read folders from server-side `folders.json`, not the extension.** Added a `list_folders` relay in `content.js` (returns `chrome.storage.local` folders); server `getFoldersLive()` + `getFolders()` prefer live extension folders and fall back to `folders.json`. `GET /api/folders`, `/api/graph`, and the automation snapshot all use it. Now Atlas shows the user's real folders once connected.
+  - **No way to load the extension from a packaged install.** electron-builder now bundles `extension/` as `extraResources`; a Help → "Connect the extension..." menu reveals the folder; Atlas shows a connect hint when no extension is linked.
+  - **Hidden port mismatch.** `/status` now returns the real `port`; Atlas shows `location.host` (not a hardcoded 3000); the desktop app warns if it could not bind 3000 (the port the extension requires).
+- Tested: new `tests/folders-live.test.js` (4/4) boots the real server, connects a stand-in extension over WebSocket, and proves live folders win over `folders.json` (and that graph + podcast plan use the live snapshot); no-client fallback preserved. Full suite now 10 suites / 122 assertions, all green. Bumped version to 1.0.1 for a new installer release.
+- Next: rebuild installers (local Windows + CI all-OS), publish v1.0.1, update README download links.
+
 ### 2026-06-27 — Business strategy report (docs/business-strategy.md)
 - Wrote a candid go-to-market / business strategy: open-core recommendation (free extension as the distribution wedge; monetize Atlas/automation/teams), ICPs (researchers/consultants, students/educators, audio/content teams, internal knowledge-ops/L&D), positioning ("the organization and automation layer for NotebookLM"), pricing sketch, GTM (community-led, "folder to podcast/study" demo), in-company integration scenarios, competitive/moat read, and a risk section led by platform dependency on NotebookLM with concrete mitigations. Linked from the README. Reported highlights to the user.
 - This completes the goal: README reviewed + updated for the newest capabilities; one-click enablement via the Atlas Studio desktop app + verified installer build + CI pipeline; polished `.bat` launchers with ASCII art; README refreshed again; and the business strategy delivered.

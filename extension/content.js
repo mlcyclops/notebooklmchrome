@@ -233,7 +233,27 @@ function init() {
       });
       return false; // No synchronous sendResponse; reply travels via sendMessage
     }
-    
+
+    else if (message.type === 'list_folders') {
+      // Expose the user's real folder structure (chrome.storage.local) to the
+      // companion server so Atlas shows the folders that actually exist, instead
+      // of the server-side folders.json. Reply via the same sendMessage channel.
+      readFoldersFromStorage().then(folders => {
+        chrome.runtime.sendMessage({
+          id: message.id,
+          type: 'response',
+          data: { folders: Array.isArray(folders) ? folders : [] }
+        });
+      }).catch(err => {
+        chrome.runtime.sendMessage({
+          id: message.id,
+          type: 'response',
+          data: { error: err.message }
+        });
+      });
+      return false;
+    }
+
     else if (message.type === 'chat_request') {
       handleChatRequest(message.id, message.data);
     } 
