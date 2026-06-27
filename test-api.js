@@ -168,6 +168,34 @@ async function runTests() {
         break;
       }
 
+      case 'podcast': {
+        const fid = args[1];
+        if (!fid) { console.log('Usage: node test-api.js podcast <folder_id>'); return; }
+        console.log(`Planning podcast series for folder ${fid}...`);
+        const plan = await makeRequest(`/api/folders/${fid}/podcast/plan`);
+        console.log(JSON.stringify(plan, null, 2));
+        console.log(`\n${plan.episodes.length} episode(s) planned. Run with a connected extension via: POST /api/folders/${fid}/podcast`);
+        break;
+      }
+
+      case 'studypack': {
+        const fid = args[1];
+        if (!fid) { console.log('Usage: node test-api.js studypack <folder_id>'); return; }
+        console.log(`Planning study pack for folder ${fid}...`);
+        const plan = await makeRequest(`/api/folders/${fid}/study-pack/plan`);
+        console.log(JSON.stringify(plan, null, 2));
+        console.log(`\n${plan.jobs.length} job(s) planned.`);
+        break;
+      }
+
+      case 'watch': {
+        const status = await makeRequest('/api/watch');
+        console.log('Watch status:', JSON.stringify(status, null, 2));
+        const plan = await makeRequest('/api/watch/plan');
+        console.log(`\nWould regenerate ${plan.jobs.length} job(s) across ${plan.changes.length} changed folder(s).`);
+        break;
+      }
+
       case 'generate':
         const nbId = args[1];
         const format = args[2]; // e.g. study-guide
@@ -190,6 +218,9 @@ async function runTests() {
         console.log('  node test-api.js chat <id> "<prompt>"    - Stream real-time chat with notebook agent');
         console.log('  node test-api.js generate <id> <format>  - Trigger guide product generation (study-guide, briefing-doc, etc.)');
         console.log('  node test-api.js graph [graphml]         - Export the library as a knowledge graph (JSON, or GraphML)');
+        console.log('  node test-api.js podcast <folder_id>     - Plan a podcast series for a folder (one episode per notebook)');
+        console.log('  node test-api.js studypack <folder_id>   - Plan a study pack (study guide / briefing / faq / timeline) for a folder');
+        console.log('  node test-api.js watch                   - Show watch-mode status and what it would regenerate');
         break;
     }
   } catch (err) {
