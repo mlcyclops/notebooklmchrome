@@ -860,24 +860,9 @@ function renderSidebar() {
   if (q) {
     unorganized = unorganized.filter(nb => notebookMatchesQuery(nb, q));
   }
-  if (unorganized.length === 0) {
-    const emptyMsg = q ? '' : 'No unorganized notebooks';
-    unorganizedContainer.innerHTML = emptyMsg
-      ? `<div style="font-size: 12px; color: var(--nlm-text-secondary); text-align: center; padding: 12px;">${emptyMsg}</div>`
-      : '';
-  } else {
-    unorganizedContainer.innerHTML = unorganized.map(nb => `
-      <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
-        <span class="nlm-notebook-icon">📓</span>
-        <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
-        <div class="nlm-notebook-actions">
-          <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
-        </div>
-      </div>
-    `).join('');
-  }
-  const unorganized = notebooksList.filter(nb => !organizedIds.has(nb.id));
-  unorganizedContainer.innerHTML = renderUnorganizedState(unorganized);
+  // Honest loading / error+retry / verified-empty states (ADR-0008) with the
+  // search filter + match highlighting (ADR-0005) folded in.
+  unorganizedContainer.innerHTML = renderUnorganizedState(unorganized, q);
 
   // 2b. Gentle "No matches" state when an active query matches nothing anywhere.
   if (q && treeHtml.trim() === '' && unorganized.length === 0) {
@@ -898,7 +883,7 @@ function renderSidebar() {
 // error (with retry), verified-empty, and the populated list. Distinguishing
 // these is what stops the UI from showing "No unorganized notebooks" when the
 // real cause is a fetch that never resolved.
-function renderUnorganizedState(unorganized) {
+function renderUnorganizedState(unorganized, q) {
   if (notebooksStatus === 'loading') {
     const skeleton = `<div class="nlm-skeleton-row"><span class="nlm-skeleton-dot"></span><span class="nlm-skeleton-bar"></span></div>`;
     return `<div class="nlm-notebooks-loading" aria-live="polite">${skeleton.repeat(4)}</div>`;
@@ -914,7 +899,9 @@ function renderUnorganizedState(unorganized) {
   }
 
   if (unorganized.length === 0) {
-    // Verified empty: the fetch succeeded and every notebook is filed.
+    // While searching, stay silent here — the tree-level "No matches" message
+    // covers an empty result. Otherwise this is a verified-empty account.
+    if (q) return '';
     return `
       <div class="nlm-notebooks-message nlm-notebooks-empty">
         <div class="nlm-message-icon">🎉</div>
@@ -925,7 +912,7 @@ function renderUnorganizedState(unorganized) {
   return unorganized.map(nb => `
     <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
       <span class="nlm-notebook-icon">📓</span>
-      <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
+      <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
       <div class="nlm-notebook-actions">
         <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
       </div>
@@ -967,14 +954,16 @@ function renderFolderNode(parentId, depth) {
     const notebooksHtml = notebooksInFolder.map(nb => `
             <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
               <span class="nlm-notebook-icon">📓</span>
-              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${escapeHtml(nb.title)}</span>
+              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
               <div class="nlm-notebook-actions">
                 <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
               </div>
             </div>
           `).join('');
     const hasContent = childFoldersHtml.trim().length > 0 || notebooksInFolder.length > 0;
-    const isCollapsed = hasContent && collapsedFolders.has(node.id);
+    // Force-expand while a search is active so matches inside a previously
+    // collapsed folder are visible.
+    const isCollapsed = hasContent && !q && collapsedFolders.has(node.id);
     const chevron = hasContent
       ? `<span class="nlm-folder-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg></span>`
       : `<span class="nlm-folder-chevron nlm-folder-chevron--empty" aria-hidden="true"></span>`;
@@ -991,17 +980,6 @@ function renderFolderNode(parentId, depth) {
             <button class="nlm-action-btn delete-folder-btn" data-folder-id="${folderId}" title="Delete">🗑️</button>
           </div>
         </div>
-        <div class="nlm-folder-children" data-folder-id="${folderId}">
-          ${childFoldersHtml}
-          ${notebooksInFolder.map(nb => `
-            <div class="nlm-notebook-item" draggable="true" data-notebook-id="${escapeHtml(nb.id)}">
-              <span class="nlm-notebook-icon">📓</span>
-              <span class="nlm-notebook-link" data-notebook-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">${highlightMatch(nb.title, q)}</span>
-              <div class="nlm-notebook-actions">
-                <button class="nlm-action-btn move-notebook-btn" data-notebook-id="${escapeHtml(nb.id)}">📂</button>
-              </div>
-            </div>
-          `).join('')}
         <div class="nlm-folder-children${isCollapsed ? ' collapsed' : ''}" data-folder-id="${folderId}">
           <div class="nlm-folder-children-inner">
             ${childFoldersHtml}

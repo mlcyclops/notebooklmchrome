@@ -8,15 +8,13 @@
 - ✅ Folder colors & icons: optional `color`/`icon` fields per folder, curated allow-listed palette + emoji set, inline customize popover, injection-safe rendering, backward-compatible normalization (ADR-0003).
 - ✅ Import / export folder structures (JSON): Export downloads a versioned `{version, exportedAt, data}` envelope; Import reads a file, validates/normalizes through `normalizeFolderData` + the color/icon sanitize allow-lists, and REPLACES the current folders after a `confirm()`. Offline-first, dependency-free (ADR-0004).
 - ✅ Search and filter within folders: debounced `<input type="search">` in the sidebar header filters the folder tree + unorganized list client-side, in memory, via a pure recursive `nodeMatchesQuery` predicate (folder name OR assigned notebook title OR descendant match; case-insensitive substring). Ancestors of a match stay visible/expanded; non-matching branches hide. Clear "×" button resets; empty query = full render; "No matches" empty state. Injection-safe escape-then-wrap highlighting. No data mutation/persistence (ADR-0005).
+- ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full owned list renders). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states.
+- ✅ ADR-0008 increment 2 — premium UI overhaul: token-based design system (color/elevation/radius/motion), rich hover/focus/active states (folder & notebook icons pop), accordion-collapsible folders, removed server-status dot, widened slide-out to 372px, popover fixes. CSS + render-layer only; storage contract untouched.
+- ✅ Merge-conflict repair: PR #5 (search) ⊕ PR #6 (UI) collided and left `content.js` broken on `main` (duplicate `unorganized` decl + doubled `.nlm-folder-children`). Reconciled so search + accordion + honest-states + highlighting all coexist.
 
 ## Next Up
-- ✅ ADR-0008 increment 1 — trustworthy notebook detection (VERIFIED LIVE: full ~80 owned notebooks render). Authenticated **`wXbhsf`** ("My notebooks") RPC with WIZ tokens (`SNlM0e`/`FdrFJe`/`cfb2h`) and the page's real query args (empty `[]` returns only a recent subset; `ub2Bae` returns the Featured gallery — both wrong). Tolerant chunked-response parser, field mapping (`title=[0]`, `id=[2]`, `sourceCount=[1].length`, `icon=[3]`), DOM-scan fallback, and honest loading / error+retry / verified-empty states replacing the always-on "No unorganized notebooks" string.
-- 🚧 ADR-0008 increment 2 IN PROGRESS: premium UI overhaul. `content.css` fully rewritten with a design-system (color/elevation/radius/motion tokens), one motion language, and rich hover/focus/active states — folder & notebook icons "pop" (scale+tilt+glow) on hover, buttons lift, dropdowns/popovers animate, online status pulses, `prefers-reduced-motion` fully covered. CSS-only; markup, class names, and data model untouched. Needs live visual confirmation.
-
-## Next Up
-- [ ] Confirm increment 2 visually on the live page; iterate on spacing/feel per user taste
+- [ ] Confirm the reconciled build visually on the live page (search + accordion + popovers together)
 - [ ] Quiet the `localhost:3000/status` console spam (optional server poll; browser logs ERR_CONNECTION_REFUSED every 5s)
-- [ ] Search and filter within folders
 - [ ] Sync folders across devices
 - [ ] Harden the experimental chat / generate automation against UI changes
 - [ ] Firefox / Edge packaging
@@ -27,6 +25,15 @@
 ---
 
 ## Session Log (append-only, newest first)
+
+### 2026-06-27 — Repair broken merge of PR #5 (search) and PR #6 (UI)
+- PR #6 (notebook detection + premium UI) merged to `main`; then PR #5 (search/filter) merged `main` into its branch (commit `49a355c`) and the conflict resolution **garbled `content.js`**: `renderSidebar` kept BOTH unorganized-render blocks (`let unorganized` + `const unorganized` → SyntaxError), and `renderFolderNode` kept BOTH children blocks (two stacked `.nlm-folder-children`). A syntax error means the whole content script fails to load — sidebar dead on `main`.
+- Fix (this branch off `main`): reconciled the two features into single coherent render functions:
+  - `renderSidebar`: one `unorganized` list, filtered by query, rendered via `renderUnorganizedState(unorganized, q)`.
+  - `renderUnorganizedState(unorganized, q)`: honest loading/error/verified-empty states + match highlighting; stays silent on empty while searching (tree-level "No matches" covers it).
+  - `renderFolderNode`: search filtering (`nodeMatchesQuery`) + highlight + single accordion children block; force-expands while a query is active so matches show.
+- Verified: `node --check` passes on all JS; single `unorganized` decl; single `.nlm-folder-children` per node; both features' handlers present; CSS braces 116/116.
+- CSS, search helpers, ADR index, and other files from the merge were already correct — only the two render functions needed repair.
 
 ### 2026-06-26 — Search and filter within folders (ADR-0005)
 - Added a debounced (~180ms) `<input type="search">` with a clear ("×") button to the sidebar header, styled to the dark violet theme in `content.css`.
