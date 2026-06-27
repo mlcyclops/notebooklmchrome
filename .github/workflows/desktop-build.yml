@@ -1,0 +1,62 @@
+name: Build Atlas Studio desktop installers
+
+# Builds the Atlas Studio desktop app installers on each OS's native runner:
+#   - Windows -> NSIS .exe
+#   - macOS   -> .dmg   (must build on macOS; cannot cross-build from Windows)
+#   - Linux   -> .AppImage
+# Runs the test suite first, then uploads each installer as a build artifact.
+# Tag a release (v*) or run manually to produce downloadable installers.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            builder_flag: --win
+            artifact: atlas-studio-windows
+            pattern: 'dist-desktop/*.exe'
+          - os: macos-latest
+            builder_flag: --mac
+            artifact: atlas-studio-macos
+            pattern: 'dist-desktop/*.dmg'
+          - os: ubuntu-latest
+            builder_flag: --linux
+            artifact: atlas-studio-linux
+            pattern: 'dist-desktop/*.AppImage'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate app icon
+        run: node tools/build-icon.js
+
+      - name: Build installer
+        run: npx electron-builder ${{ matrix.builder_flag }} --publish never
+        env:
+          # Skip code signing for unsigned CI artifacts.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error
