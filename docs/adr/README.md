@@ -27,3 +27,4 @@ context-window resets. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full wor
 | 0005 | [Search and filter within folders](0005-search-and-filter-within-folders.md)            | Accepted | 2026-06-26 |
 | 0006 | [Sync folders across devices](0006-sync-folders-across-devices.md)                       | Accepted | 2026-06-26 |
 | 0008 | [Premium UI/UX redesign and trustworthy notebook states](0008-premium-ui-ux-and-trustworthy-notebook-states.md) | Accepted | 2026-06-26 |
+| 0009 | [Harden the experimental chat/generate automation against UI changes](0009-harden-chat-generate-automation.md) | Accepted | 2026-06-26 |
