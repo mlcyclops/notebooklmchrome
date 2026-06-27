@@ -1,6 +1,6 @@
 {
   "name": "notebooklm-companion-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Companion server, knowledge-graph + automation API, and Atlas desktop studio for the NotebookLM Folderizer extension",
   "main": "desktop/main.js",
   "author": "NotebookLM Folderizer contributors",
@@ -14,7 +14,7 @@
     "dist:mac": "electron-builder --mac",
     "check": "node --check server.js && node --check test-api.js && node --check extension/content.js && node --check extension/background.js && node --check desktop/main.js",
     "package": "node tools/package-extension.js",
-    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js && node tests/desktop.test.js"
+    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js && node tests/packaging.test.js && node tests/automation-pipeline.test.js && node tests/automation-endpoint.test.js && node tests/atlas-view.test.js && node tests/atlas-endpoint.test.js && node tests/desktop.test.js && node tests/folders-live.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -38,6 +38,9 @@
       "lib/**/*",
       "atlas/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      { "from": "extension", "to": "extension" }
     ],
     "extraMetadata": {
       "main": "desktop/main.js"

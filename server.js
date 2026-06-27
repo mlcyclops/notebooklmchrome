@@ -113,8 +113,29 @@ async function getNotebooksLive() {
     return [];
   } catch (e) { return []; }
 }
+// Ask the connected extension for the user's real folders (chrome.storage.local).
+// Returns an array, or null if no extension is connected / the call fails.
+async function getFoldersLive() {
+  if (clients.length === 0) return null;
+  try {
+    const resp = await sendRequestToExtension('list_folders', {});
+    if (resp && Array.isArray(resp.folders)) return resp.folders;
+    if (Array.isArray(resp)) return resp;
+    return null;
+  } catch (e) { return null; }
+}
+// Prefer the live extension folders (what the user actually sees in NotebookLM);
+// fall back to folders.json when no extension is connected, or to disk when the
+// extension is connected but has no folders yet but a seed file exists.
+async function getFolders() {
+  const live = await getFoldersLive();
+  if (live && live.length) return live;
+  const disk = await getFoldersFromDisk();
+  if (disk.length) return disk;
+  return live || disk; // [] either way
+}
 async function getSnapshot() {
-  const [folders, notebooks] = await Promise.all([getFoldersFromDisk(), getNotebooksLive()]);
+  const [folders, notebooks] = await Promise.all([getFolders(), getNotebooksLive()]);
   return { folders, notebooks };
 }
 // Run one generate-product job against the connected extension.
@@ -123,23 +144,12 @@ function runGenerateJob(job) {
 }
 
 // REST Endpoints
+// Returns the user's live folders from the connected extension when available
+// (so Atlas shows what is actually in NotebookLM), falling back to folders.json.
 app.get('/api/folders', (req, res) => {
-  const dbPath = path.join(__dirname, 'folders.json');
-  fs.readFile(dbPath, 'utf8', (err, data) => {
-    if (err) {
-      // The folders.json file is created lazily on first POST. If it does not
-      // exist yet (first run), return a sensible empty default instead of 500.
-      if (err.code === 'ENOENT') {
-        return res.json({ folders: [] });
-      }
-      return res.status(500).json({ error: 'Failed to read folders list database' });
-    }
-    try {
-      res.json(JSON.parse(data));
-    } catch (e) {
-      res.status(500).json({ error: 'Malformed folders database file' });
-    }
-  });
+  getFolders()
+    .then((folders) => res.json({ folders }))
+    .catch((err) => res.status(500).json({ error: err.message }));
 });
 
 app.post('/api/folders', (req, res) => {
@@ -230,35 +240,11 @@ app.post('/api/notebooks/:id/generate-product', async (req, res) => {
 });
 
 // Export the whole library as a knowledge graph (ADR-0011).
-// Folders come from folders.json; notebooks are fetched live from the extension
-// when one is connected, otherwise the graph is built from the folder structure
-// alone (folder-referenced notebooks still appear as nodes). Use
+// Uses the live snapshot (folders from the connected extension, falling back to
+// folders.json; notebooks from the extension when connected). Use
 // `?format=graphml` for GraphML (yEd / Gephi / Cytoscape), default is JSON.
 app.get('/api/graph', (req, res) => {
-  const dbPath = path.join(__dirname, 'folders.json');
-
-  const readFolders = () => new Promise((resolve) => {
-    fs.readFile(dbPath, 'utf8', (err, data) => {
-      if (err) return resolve([]); // no folders.json yet => empty structure
-      try {
-        const parsed = JSON.parse(data);
-        resolve(Array.isArray(parsed.folders) ? parsed.folders : []);
-      } catch (e) { resolve([]); }
-    });
-  });
-
-  const readNotebooks = async () => {
-    try {
-      const resp = await sendRequestToExtension('list_notebooks', {});
-      if (Array.isArray(resp)) return resp;
-      if (resp && Array.isArray(resp.notebooks)) return resp.notebooks;
-      return [];
-    } catch (e) {
-      return []; // extension offline: build from folders alone
-    }
-  };
-
-  Promise.all([readFolders(), readNotebooks()]).then(([folders, notebooks]) => {
+  getSnapshot().then(({ folders, notebooks }) => {
     const graph = buildGraph({ folders, notebooks });
     const meta = { generatedAt: new Date().toISOString() };
     const format = String(req.query.format || '').toLowerCase();
@@ -385,6 +371,7 @@ app.get('/api/watch/plan', async (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
+    port: PORT,
     connectedClients: clients.length,
     activeRequests: pendingRequests.size,
     activeStreams: pendingStreams.size

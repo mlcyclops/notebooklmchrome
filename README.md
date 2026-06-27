@@ -147,6 +147,14 @@ Installers build on each OS via CI (`.github/workflows/desktop-build.yml`); the 
 `.dmg` must be built on macOS. Artifacts are unsigned, so the first launch may show an
 OS warning (choose "More info" / "Open anyway").
 
+**First launch (connect the extension):** Atlas reads your folders and notebooks through
+the browser extension, so load it once. The extension ships **inside the app**: use the
+menu **Help → Connect the extension...** to reveal its folder, then in your browser go to
+`chrome://extensions` → Developer mode → **Load unpacked** and select that folder. Open
+[notebooklm.google.com](https://notebooklm.google.com) and keep the tab open. The status
+pill turns green ("Connected") and your library appears. The extension connects on port
+**3000**, so close any other companion server first.
+
 > The desktop app delivers the **server + Atlas**. The browser extension still installs
 > separately (it has to live in your browser) and supplies the live notebook data and
 > generation.

@@ -11,6 +11,36 @@ const PREFERRED_PORT = Number(process.env.ATLAS_PORT) || 3000;
 let serverPort = PREFERRED_PORT;
 let mainWindow = null;
 
+// Where the bundled browser extension lives, so we can help users load it.
+// Packaged: shipped as an unpacked folder under resources/ (extraResources);
+// dev: the repo's extension/ directory.
+function extensionDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'extension')
+    : path.join(__dirname, '..', 'extension');
+}
+
+function showConnectHelp() {
+  const dir = extensionDir();
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Connect the browser extension',
+    message: 'Atlas needs the Folderizer browser extension',
+    detail:
+      'Atlas reads your folders and notebooks through the Folderizer browser extension.\n\n' +
+      '1. Open your browser and go to chrome://extensions (or edge://extensions).\n' +
+      '2. Turn on Developer mode.\n' +
+      '3. Click "Load unpacked" and select this folder:\n' +
+      dir + '\n\n' +
+      '4. Open notebooklm.google.com and keep the tab open.\n\n' +
+      'The extension connects on port 3000, so Atlas must be the server running there. ' +
+      'The status pill turns green ("Connected") once it links up.',
+    buttons: ['Open the extension folder', 'OK'],
+    defaultId: 0,
+    cancelId: 1
+  }).then((r) => { if (r.response === 0) shell.openPath(dir); });
+}
+
 // Find an open port, starting at `preferred` and walking upward.
 function findOpenPort(preferred, attempts) {
   return new Promise((resolve) => {
@@ -81,6 +111,8 @@ function buildMenu() {
     {
       role: 'help',
       submenu: [
+        { label: 'Connect the extension...', click: () => showConnectHelp() },
+        { type: 'separator' },
         {
           label: 'About Atlas Studio',
           click: () => dialog.showMessageBox(mainWindow, {
@@ -115,6 +147,22 @@ if (!app.requestSingleInstanceLock()) {
     }
     buildMenu();
     createWindow();
+    // The browser extension connects on port 3000. If something else already
+    // holds 3000, the extension will link to that instead of this app, so warn.
+    if (serverPort !== 3000) {
+      mainWindow.once('ready-to-show', () => {
+        dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          title: 'Port 3000 is in use',
+          message: 'Atlas is running on port ' + serverPort,
+          detail:
+            'Something else is already using port 3000 (probably another companion server). ' +
+            'The browser extension only connects on port 3000, so it will not link to this ' +
+            'window until 3000 is free.\n\nClose the other server, then restart Atlas Studio.',
+          buttons: ['OK']
+        });
+      });
+    }
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   });
 

@@ -45,6 +45,7 @@ function get(p) {
   const b = pkg.build;
   check('build config present with appId + productName', b && b.appId && b.productName === 'Atlas Studio');
   check('build bundles server, lib, atlas, and desktop', ['desktop/**/*', 'server.js', 'lib/**/*', 'atlas/**/*'].every(g => b.files.includes(g)));
+  check('the browser extension is bundled as an extra resource', Array.isArray(b.extraResources) && b.extraResources.some(r => (r.from || r) === 'extension'));
   check('Windows target is the NSIS installer', b.win.target.includes('nsis'));
   check('macOS target is a dmg', b.mac.target.includes('dmg'));
   check('desktop scripts are wired (desktop / dist:win / dist:mac)', !!(pkg.scripts.desktop && pkg.scripts['dist:win'] && pkg.scripts['dist:mac']));
