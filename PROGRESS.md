@@ -37,6 +37,13 @@
 
 ## Session Log (append-only, newest first)
 
+### 2026-06-27 — Thorough README refresh for the new capabilities
+- Added a top-level "Get started" table (folders-only via extension / easy Atlas + automation via run.bat or the desktop app / terminal via npm) so the easiest path to the newest capabilities is the first thing a reader sees.
+- New "Desktop app (Atlas Studio)" section: download installers, build via `build-desktop.bat` or `run.bat` option 5 or `npm run dist:*`, CI pipeline note, unsigned-artifact caveat, and the extension-still-separate note.
+- Updated the companion-server "Run it" note to describe the new `run.bat` menu; added desktop + Atlas to the Architecture bullets; expanded Development (desktop/dist scripts, build-icon, lib/ + atlas/); added desktop app + .bat launchers to the Roadmap "Shipped"; added a desktop launch option to the Atlas section.
+- Verified 0 em dashes; headers/anchors consistent.
+- Next: business strategy report.
+
 ### 2026-06-27 — Guided .bat launchers with ASCII art (ADR-0016)
 - Rewrote `run.bat` as a polished, menu-driven launcher: branded "ATLAS" ASCII banner, numbered menu (launch desktop app / start server + open Atlas / load extension into Chrome / build browser packages / build desktop installer / run tests / help + API reference / exit). Reuses the portable-Node bootstrap, auto-installs deps, frees port 3000, loops back to the menu. Added `build-desktop.bat` (one-click Windows installer build with its own ASCII banner + progress).
 - Added `.gitattributes` (`*.bat eol=crlf`) and converted both files to CRLF. Debugging this surfaced two real robustness issues, both fixed: (1) batch `goto` mis-seeks on LF-only files, so CRLF is now enforced; (2) a stray carriage return / space in a menu choice broke `if` routing, so choices are normalized to their first character (`set "choice=%choice:~0,1%"`), same for the return-prompt.
