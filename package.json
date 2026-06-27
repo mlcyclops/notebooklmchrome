@@ -4,7 +4,9 @@
   "description": "Local companion server for NotebookLM Chrome Extension",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check test-api.js && node --check extension/content.js && node --check extension/background.js",
+    "test": "node tests/automation.test.js && node tests/knowledge-graph.test.js && node tests/graph-endpoint.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
